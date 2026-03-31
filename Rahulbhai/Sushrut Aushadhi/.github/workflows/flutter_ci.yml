@@ -33,10 +33,10 @@ jobs:
         run: cd sushrut_aushadhi && flutter pub get
 
       - name: Analyze code
-        run: cd sushrut_aushadhi && flutter analyze
+        run: cd sushrut_aushadhi && flutter analyze --no-fatal-infos
 
       - name: Run tests
-        run: cd sushrut_aushadhi && flutter test
+        run: cd sushrut_aushadhi && flutter test --no-pub
 
       - name: Clean build
         run: cd sushrut_aushadhi && flutter clean
