@@ -48,13 +48,13 @@ class MockQuerySnapshot extends Mock implements QuerySnapshot<Map<String, dynami
 }
 
 class MockQueryDocumentSnapshot extends Mock implements QueryDocumentSnapshot<Map<String, dynamic>> {
-  final Map<String, dynamic> _data;
+  final Map<String, dynamic> _docData;
   final String _id;
   
-  MockQueryDocumentSnapshot(this._data, this._id);
+  MockQueryDocumentSnapshot(this._docData, this._id);
   
   @override
-  Map<String, dynamic> get data => _data;
+  Map<String, dynamic> data() => _docData;
   
   @override
   String get id => _id;
@@ -69,14 +69,14 @@ class MockDocumentReference extends Mock implements DocumentReference<Map<String
 }
 
 class MockDocumentSnapshot extends Mock implements DocumentSnapshot<Map<String, dynamic>> {
-  final Map<String, dynamic>? _data;
+  final Map<String, dynamic>? _docData;
   final String _id;
   final bool _exists;
   
-  MockDocumentSnapshot(this._data, this._id, {bool exists = true}) : _exists = exists;
+  MockDocumentSnapshot(this._docData, this._id, {bool exists = true}) : _exists = exists;
   
   @override
-  Map<String, dynamic>? get data => _data;
+  Map<String, dynamic>? data() => _docData;
   
   @override
   String get id => _id;
@@ -98,7 +98,7 @@ class MockStorageReference extends Mock implements Reference {
 
 class MockUploadTask extends Mock implements UploadTask {
   @override
-  Future<TaskSnapshot> get snapshot => Future.value(MockTaskSnapshot());
+  TaskSnapshot get snapshot => MockTaskSnapshot();
 }
 
 class MockTaskSnapshot extends Mock implements TaskSnapshot {
@@ -118,5 +118,5 @@ class MockTaskSnapshot extends Mock implements TaskSnapshot {
 void registerFallbackValues() {
   registerFallbackValue(MockAuthCredential());
   registerFallbackValue(<String, dynamic>{});
-  registerFallbackValue(const TypeMatcher<Map<String, dynamic>>());
+  registerFallbackValue(any());
 }

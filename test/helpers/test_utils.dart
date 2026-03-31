@@ -22,7 +22,7 @@ Future<void> pumpUntilFound(
   final endTime = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(endTime)) {
     await tester.pump(const Duration(milliseconds: 100));
-    if (finder.evaluateIfVisible().isNotEmpty) {
+    if (finder.evaluate().isNotEmpty) {
       return;
     }
   }
