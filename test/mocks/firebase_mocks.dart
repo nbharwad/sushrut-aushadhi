@@ -106,9 +106,6 @@ class MockTaskSnapshot extends Mock implements TaskSnapshot {
   Reference get ref => MockStorageReference();
   
   @override
-  String get path => 'prescriptions/test-file.jpg';
-  
-  @override
   int get totalBytes => 1000;
   
   @override
