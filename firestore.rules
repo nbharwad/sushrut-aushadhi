@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid))
+        .data.isAdmin == true;
+    }
+
+    function isValidUserData() {
+      let allowedKeys = ['name', 'phone', 'address', 'pincode', 'fcmToken', 'createdAt'];
+      return request.resource.data.keys().hasOnly(allowedKeys);
+    }
+
+    function isValidOrderData() {
+      let allowedKeys = ['orderId', 'userId', 'userPhone', 'userName', 'deliveryAddress',
+                        'items', 'prescriptionUrl', 'totalAmount', 'status', 'paymentMethod',
+                        'paymentStatus', 'notes', 'createdAt', 'updatedAt'];
+      return request.resource.data.keys().hasOnly(allowedKeys);
+    }
+
+    function isValidPrescriptionData() {
+      let allowedKeys = ['userId', 'userPhone', 'userName', 'imageUrl',
+                        'status', 'orderId', 'notes', 'createdAt', 'updatedAt'];
+      return request.resource.data.keys().hasOnly(allowedKeys);
+    }
+
+    function isValidNotificationData() {
+      let allowedKeys = ['userId', 'title', 'body', 'type', 'isRead', 'createdAt'];
+      return request.resource.data.keys().hasOnly(allowedKeys);
+    }
+
+    function isSafeString(str, maxLen) {
+      return str is string && str.size() > 0 && str.size() <= maxLen;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUserData();
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidUserData();
+    }
+
+    match /medicines/{medicineId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        isValidOrderData();
+
+      allow read: if isSignedIn() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow update: if isAdmin() && isValidOrderData();
+    }
+
+    match /prescriptions/{prescriptionId} {
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        isValidPrescriptionData();
+
+      allow read: if isSignedIn() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow update: if isAdmin() && isValidPrescriptionData();
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read, create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        isValidNotificationData();
+      allow update, delete: if isSignedIn() &&
+        resource.data.userId == request.auth.uid;
+    }
+
+    match /search_history/{documentId} {
+      allow read, create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() &&
+        resource.data.userId == request.auth.uid;
+    }
+
+    match /rate_limits/{limitId} {
+      allow read, write: if isSignedIn() && request.auth.uid == limitId;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

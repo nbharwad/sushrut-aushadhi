@@ -1,0 +1,39 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdminUser() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function isValidImage() {
+      return request.resource.contentType.matches('image/(jpeg|jpg|png|webp)');
+    }
+
+    function isValidSize() {
+      return request.resource.size < 5 * 1024 * 1024; // 5MB max
+    }
+
+    match /prescriptions/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isAdminUser();
+      allow write: if isOwner(userId) && isValidSize() && isValidImage();
+    }
+
+    match /medicines/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
