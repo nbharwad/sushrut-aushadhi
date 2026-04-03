@@ -9,9 +9,8 @@ service firebase.storage {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    function isAdminUser() {
-      return isSignedIn() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.role == 'admin';
     }
 
     function isValidImage() {
@@ -19,11 +18,11 @@ service firebase.storage {
     }
 
     function isValidSize() {
-      return request.resource.size < 5 * 1024 * 1024; // 5MB max
+      return request.resource.size < 10 * 1024 * 1024;
     }
 
     match /prescriptions/{userId}/{fileName} {
-      allow read: if isOwner(userId) || isAdminUser();
+      allow read: if isOwner(userId) || isAdmin();
       allow write: if isOwner(userId) && isValidSize() && isValidImage();
     }
 
