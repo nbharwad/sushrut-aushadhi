@@ -12,7 +12,12 @@ admin.initializeApp({
 const db = admin.firestore();
 
 async function updateAdminStatus() {
-  const uid = 'wxEH6t2lYORAvsyst2YNfjs9XAD2';
+  const uid = process.argv[2];
+  
+  if (!uid) {
+    console.error('Usage: node update-admin.js <uid>');
+    process.exit(1);
+  }
   
   try {
     await db.collection('users').doc(uid).update({

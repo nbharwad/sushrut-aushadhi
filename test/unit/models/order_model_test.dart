@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sushrut_aushadhi/models/order_model.dart';
+import 'package:sushrut_aushadhi/models/delivery_address.dart';
 
 void main() {
   group('OrderStatus', () {
@@ -69,7 +70,7 @@ void main() {
         userId: 'user-123',
         userPhone: '+911234567890',
         userName: 'Test User',
-        deliveryAddress: 'Test',
+        deliveryAddress: DeliveryAddress(line1: 'Test', city: '', state: '', pincode: ''),
         items: [
           OrderItem(medicineId: '1', medicineName: 'M1', price: 10, quantity: 2, subtotal: 20),
           OrderItem(medicineId: '2', medicineName: 'M2', price: 15, quantity: 3, subtotal: 45),

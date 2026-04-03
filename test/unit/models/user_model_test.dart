@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sushrut_aushadhi/models/user_model.dart';
+import 'package:sushrut_aushadhi/models/delivery_address.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() {
@@ -60,8 +61,12 @@ void main() {
           uid: 'user-123',
           name: 'John Doe',
           phone: '+911234567890',
-          address: '123 Main Street',
-          pincode: '123456',
+          deliveryAddress: DeliveryAddress(
+            line1: '123 Main Street',
+            city: 'City',
+            state: 'State',
+            pincode: '123456',
+          ),
           isAdmin: false,
           fcmToken: 'test-token',
           createdAt: DateTime(2024, 1, 1),
@@ -72,8 +77,9 @@ void main() {
         expect(map['uid'], equals('user-123'));
         expect(map['name'], equals('John Doe'));
         expect(map['phone'], equals('+911234567890'));
-        expect(map['address'], equals('123 Main Street'));
-        expect(map['pincode'], equals('123456'));
+        expect(map['address'], isA<Map<String, dynamic>>());
+        expect((map['address'] as Map)['line1'], equals('123 Main Street'));
+        expect((map['address'] as Map)['pincode'], equals('123456'));
         expect(map['isAdmin'], isFalse);
         expect(map['fcmToken'], equals('test-token'));
         expect(map['createdAt'], isA<Timestamp>());
@@ -120,11 +126,13 @@ void main() {
           uid: 'user-123',
           name: 'John',
           phone: '+911234567890',
-          address: 'Old Address',
+          deliveryAddress: DeliveryAddress(line1: 'Old Address', city: '', state: '', pincode: ''),
           createdAt: DateTime.now(),
         );
 
-        final updatedUser = user.copyWith(address: 'New Address');
+        final updatedUser = user.copyWith(
+          deliveryAddress: DeliveryAddress(line1: 'New Address', city: '', state: '', pincode: ''),
+        );
 
         expect(updatedUser.address, equals('New Address'));
         expect(user.address, equals('Old Address'));
@@ -150,8 +158,7 @@ void main() {
           uid: 'user-123',
           name: 'John',
           phone: '+911234567890',
-          address: 'Test Address',
-          pincode: '123456',
+          deliveryAddress: DeliveryAddress(line1: 'Test Address', city: 'City', state: 'State', pincode: '123456'),
           isAdmin: true,
           fcmToken: 'token',
           createdAt: DateTime(2024, 1, 1),

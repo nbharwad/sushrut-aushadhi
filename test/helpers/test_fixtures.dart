@@ -2,6 +2,7 @@ import 'package:sushrut_aushadhi/models/medicine_model.dart';
 import 'package:sushrut_aushadhi/models/order_model.dart';
 import 'package:sushrut_aushadhi/models/user_model.dart';
 import 'package:sushrut_aushadhi/models/cart_item_model.dart';
+import 'package:sushrut_aushadhi/models/delivery_address.dart';
 
 class TestFixtures {
   static MedicineModel createMedicine({
@@ -39,8 +40,12 @@ class TestFixtures {
       uid: uid ?? 'user-123',
       name: name ?? 'Test User',
       phone: phone ?? '+911234567890',
-      address: '123 Test Street',
-      pincode: '123456',
+      deliveryAddress: DeliveryAddress(
+        line1: '123 Test Street',
+        city: 'Test City',
+        state: 'Test State',
+        pincode: '123456',
+      ),
       isAdmin: isAdmin ?? false,
       createdAt: DateTime.now(),
     );
@@ -58,7 +63,12 @@ class TestFixtures {
       userId: userId ?? 'user-123',
       userPhone: '+911234567890',
       userName: 'Test User',
-      deliveryAddress: '123 Test Street',
+      deliveryAddress: DeliveryAddress(
+        line1: '123 Test Street',
+        city: 'Test City',
+        state: 'Test State',
+        pincode: '123456',
+      ),
       items: items ?? [createOrderItem()],
       totalAmount: totalAmount ?? 199.98,
       status: status ?? OrderStatus.pending,

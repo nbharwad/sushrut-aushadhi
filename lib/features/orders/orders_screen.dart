@@ -11,6 +11,7 @@ import '../../core/widgets/empty_state_widget.dart';
 import '../../models/order_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/orders_provider.dart';
+import '../../services/connectivity_service.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
@@ -43,6 +44,30 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
   Future<void> _handleReorder(OrderModel order) async {
     if (_isReordering) return;
 
+    // Check internet connection first
+    final isOnline = await ConnectivityService.checkConnection();
+    if (!isOnline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.wifi_off, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'No internet connection.\nPlease connect to reorder.',
+                  style: GoogleFonts.sora(),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFFE53935),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isReordering = true);
 
     showDialog(
@@ -66,24 +91,56 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
     );
 
     try {
-      await ref.read(cartProvider.notifier).reorderFromOrder(order);
+      final result = await ref.read(cartProvider.notifier).reorderFromOrder(order);
       
       if (!mounted) return;
       Navigator.of(context).pop();
 
+      // Build result message
+      String message = '';
+      Color backgroundColor = const Color(0xFF0F6E56);
+
+      if (result.isSuccess) {
+        message = '${result.totalAdded} item(s) added to cart!';
+        backgroundColor = const Color(0xFF0F6E56);
+        
+        if (result.outOfStockItems.isNotEmpty) {
+          message += '\n⚠️ Out of stock: ${result.outOfStockItems.join(', ')}';
+        }
+        if (result.notFoundItems.isNotEmpty) {
+          message += '\n❌ Not available: ${result.notFoundItems.join(', ')}';
+        }
+      } else {
+        message = 'Could not add any items to cart';
+        backgroundColor = const Color(0xFFE53935);
+        
+        if (result.outOfStockItems.isNotEmpty) {
+          message += '\n⚠️ Out of stock: ${result.outOfStockItems.join(', ')}';
+        }
+        if (result.notFoundItems.isNotEmpty) {
+          message += '\n❌ Not available: ${result.notFoundItems.join(', ')}';
+        }
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Items added to cart'),
-          backgroundColor: const Color(0xFF0F6E56),
+          content: Text(message),
+          backgroundColor: backgroundColor,
           behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'View Cart',
-            textColor: Colors.white,
-            onPressed: () => context.push('/cart'),
-          ),
+          duration: const Duration(seconds: 4),
+          action: result.isSuccess
+              ? SnackBarAction(
+                  label: 'View Cart',
+                  textColor: Colors.white,
+                  onPressed: () => context.push('/cart'),
+                )
+              : null,
         ),
       );
-      context.push('/cart');
+      
+      if (result.isSuccess && mounted) {
+        context.push('/cart');
+      }
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop();
