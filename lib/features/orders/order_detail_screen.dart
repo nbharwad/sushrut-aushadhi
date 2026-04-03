@@ -295,7 +295,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            Text(order.deliveryAddress),
+            Text(order.deliveryAddress.toDisplayString()),
           ],
         ),
       ),
