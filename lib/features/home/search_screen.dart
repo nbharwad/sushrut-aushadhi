@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/medicine_model.dart';
 import '../../providers/cart_provider.dart';
-import '../../providers/medicines_provider.dart';
+import '../../providers/search_provider.dart';
 import '../../core/di/service_providers.dart';
 import '../../services/search_history_service.dart';
 import '../../core/utils/helpers.dart';
@@ -261,7 +261,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       return _buildSuggestions();
     }
 
-    final resultsAsync = ref.watch(searchResultsProvider(_query));
+    final resultsAsync = ref.watch(hybridSearchProvider(_query));
 
     return resultsAsync.when(
       loading: () => const Center(
@@ -312,24 +312,35 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildResultsList(List<MedicineModel> items) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Text(
-            '${items.length} result${items.length == 1 ? '' : 's'} for "$_query"',
-            style: GoogleFonts.sora(
-              fontSize: 12,
-              color: _textSecondary,
-              fontWeight: FontWeight.w500,
+    return RefreshIndicator(
+      color: const Color(0xFF0F6E56),
+      backgroundColor: Colors.white,
+      strokeWidth: 2.5,
+      onRefresh: () async {
+        if (_query.isNotEmpty) {
+          setState(() {});
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Text(
+              '${items.length} result${items.length == 1 ? '' : 's'} for "$_query"',
+              style: GoogleFonts.sora(
+                fontSize: 12,
+                color: _textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-        ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: items.length,
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(12),
+              physics: const AlwaysScrollableScrollPhysics(),
+              itemCount: items.length,
             separatorBuilder: (_, __) => const Divider(height: 0.5),
             itemBuilder: (ctx, i) {
               final medicine = items[i];
@@ -485,7 +496,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         ),
       ],
-    );
+    ),
+  );
   }
 
   IconData _searchResultIcon(String category) {

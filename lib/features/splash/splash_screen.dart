@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../providers/auth_provider.dart';
 import '../../services/local_data_service.dart';
 import '../../services/connectivity_service.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
 
   late AnimationController _controller;
@@ -60,10 +62,23 @@ class _SplashScreenState extends State<SplashScreen>
 
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      context.go('/home');
-    } else {
-      context.go('/home');
+      // Force-refresh JWT so custom claims (role) are loaded before the router
+      // evaluates the admin guard. Without this, returning admins get isAdmin=false.
+      await user.getIdTokenResult(true);
+      ref.invalidate(roleProvider);
     }
+
+    // Wait until authReadyProvider is true (role future settled), max 5s.
+    const maxWait = Duration(seconds: 5);
+    final deadline = DateTime.now().add(maxWait);
+    while (!ref.read(authReadyProvider)) {
+      if (DateTime.now().isAfter(deadline)) break;
+      await Future.delayed(const Duration(milliseconds: 50));
+      if (!mounted) return;
+    }
+
+    if (!mounted) return;
+    context.go(user != null ? '/home' : '/login');
   }
 
   @override
