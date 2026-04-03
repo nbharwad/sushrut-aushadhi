@@ -17,7 +17,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.6'
+          flutter-version: '3.19.0'
 
       - name: Install dependencies
         run: flutter pub get
@@ -25,14 +25,14 @@ jobs:
       - name: Clean build
         run: flutter clean
 
-      - name: Build App Bundle
-        run: flutter build appbundle --release
-
       - name: Run Flutter Analyze
         run: flutter analyze --no-fatal-infos
 
       - name: Run Flutter Tests
-        run: flutter test
+        run: flutter test --no-pub
+
+      - name: Build App Bundle
+        run: flutter build appbundle --release
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
