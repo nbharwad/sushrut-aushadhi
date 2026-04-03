@@ -27,7 +27,6 @@ const _background = Color(0xFFF7F9F7);
 const _textPrimary = Color(0xFF1A1A1A);
 const _textSecondary = Color(0xFF666666);
 const _discountRed = Color(0xFFE53935);
-const _navBarHeight = kBottomNavigationBarHeight;
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -156,8 +155,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cartCount = ref.watch(cartItemCountProvider);
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final screenHeight = MediaQuery.of(context).size.height;
+    // Responsive: base nav height (64) + bottom padding + extra for taller screens
+    final navHeight = 64 + bottomInset + (screenHeight > 800 ? 8 : 4);
     return Scaffold(
       backgroundColor: _background,
       body: SafeArea(
@@ -169,7 +170,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           onRefresh: _onRefresh,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.only(bottom: _navBarHeight + bottomInset + 28),
+            padding: EdgeInsets.only(bottom: navHeight + 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -191,16 +192,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: _HomeBottomNav(
-        currentIndex: 0,
-        cartCount: cartCount,
-        onTap: (index) {
-          if (index == 1) _openSearch();
-          if (index == 2) context.push('/cart');
-          if (index == 3) context.push('/orders');
-          if (index == 4) context.push('/profile');
-        },
       ),
     );
   }
