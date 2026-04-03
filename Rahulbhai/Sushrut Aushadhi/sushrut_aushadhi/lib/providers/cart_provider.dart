@@ -6,6 +6,26 @@ import '../models/cart_item_model.dart';
 import '../models/order_model.dart';
 import '../core/di/service_providers.dart';
 
+/// Result of a reorder operation containing lists of items
+/// that were added, out of stock, or not found
+class ReorderResult {
+  final List<String> addedItems;
+  final List<String> outOfStockItems;
+  final List<String> notFoundItems;
+
+  ReorderResult({
+    required this.addedItems,
+    required this.outOfStockItems,
+    required this.notFoundItems,
+  });
+
+  int get totalAdded => addedItems.length;
+  int get totalOutOfStock => outOfStockItems.length;
+  int get totalNotFound => notFoundItems.length;
+  bool get hasErrors => outOfStockItems.isNotEmpty || notFoundItems.isNotEmpty;
+  bool get isSuccess => addedItems.isNotEmpty;
+}
+
 class CartNotifier extends StateNotifier<List<CartItem>> {
   final Ref _ref;
   CartNotifier(this._ref) : super([]) {
@@ -63,32 +83,36 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     } catch (e) {}
   }
 
-  Future<void> reorderFromOrder(OrderModel order) async {
+  Future<ReorderResult> reorderFromOrder(OrderModel order) async {
     state = [];
     
     final firestoreService = _ref.read(firestoreServiceProvider);
-    int added = 0;
-    int outOfStock = 0;
-    int notFound = 0;
+    List<String> addedItems = [];
+    List<String> outOfStockItems = [];
+    List<String> notFoundItems = [];
 
     for (final item in order.items) {
       final medicine = await firestoreService.getMedicineById(item.medicineId);
       
       if (medicine == null) {
-        notFound++;
+        notFoundItems.add(item.medicineName);
         continue;
       }
       
       if (medicine.stock < 1) {
-        outOfStock++;
+        outOfStockItems.add(item.medicineName);
         continue;
       }
       
       addItem(medicine, quantity: item.quantity);
-      added++;
+      addedItems.add(item.medicineName);
     }
 
-    return;
+    return ReorderResult(
+      addedItems: addedItems,
+      outOfStockItems: outOfStockItems,
+      notFoundItems: notFoundItems,
+    );
   }
 
   void addItem(MedicineModel medicine, {int quantity = 1}) {
