@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -21,11 +24,28 @@ import '../../features/profile/profile_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../providers/auth_provider.dart';
 
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
+  }
+
+  late final StreamSubscription<dynamic> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
 final goRouterProvider = Provider<GoRouter>((ref) {
   final isAdmin = ref.watch(isAdminProvider);
+  final authListener = GoRouterRefreshStream(FirebaseAuth.instance.authStateChanges());
 
   return GoRouter(
     initialLocation: '/splash',
+    refreshListenable: authListener,
     redirect: (context, state) {
       final user = FirebaseAuth.instance.currentUser;
       final location = state.matchedLocation;

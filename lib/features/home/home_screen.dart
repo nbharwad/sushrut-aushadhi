@@ -16,6 +16,7 @@ import '../../models/article_model.dart';
 import '../../models/medicine_model.dart';
 import '../../providers/articles_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/medicines_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../services/local_data_service.dart';
@@ -145,6 +146,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   double _heroHeightForWidth(double width) {
     return (width * 0.52).clamp(176.0, 220.0);
+  }
+
+  String _extractCity(String address) {
+    if (address.isEmpty) return 'Select Location';
+    final parts = address.split(',');
+    if (parts.length >= 2) return parts[1].trim();
+    return parts.first.trim();
   }
 
   Future<void> _onRefresh() async {
@@ -370,28 +378,38 @@ Text(
               const Icon(Icons.location_on_rounded, color: _primary, size: 20),
               const SizedBox(width: 8),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Deliver to',
-                        style: GoogleFonts.sora(
-                            fontSize: 11,
-                            color: _textSecondary,
-                            fontWeight: FontWeight.w500)),
-                    Text('Anand, Gujarat',
-                        style: GoogleFonts.sora(
-                            fontSize: 15,
-                            color: _textPrimary,
-                            fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 2),
-                    Text('Dispatched from Koramangala, Bengaluru',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.sora(
-                            fontSize: 11,
-                            color: const Color(0xFF7E867F),
-                            fontWeight: FontWeight.w500)),
-                  ],
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final userAsync = ref.watch(currentUserProvider);
+                    final user = userAsync.valueOrNull;
+                    final displayAddress = user?.address ?? '';
+                    final city = _extractCity(displayAddress);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Deliver to',
+                            style: GoogleFonts.sora(
+                                fontSize: 11,
+                                color: _textSecondary,
+                                fontWeight: FontWeight.w500)),
+                        Text(city.isNotEmpty ? city : 'Anand, Gujarat',
+                            style: GoogleFonts.sora(
+                                fontSize: 15,
+                                color: _textPrimary,
+                                fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text(displayAddress.isNotEmpty 
+                            ? displayAddress 
+                            : 'Dispatched from Koramangala, Bengaluru',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.sora(
+                                fontSize: 11,
+                                color: const Color(0xFF7E867F),
+                                fontWeight: FontWeight.w500)),
+                      ],
+                    );
+                  },
                 ),
               ),
               Consumer(
