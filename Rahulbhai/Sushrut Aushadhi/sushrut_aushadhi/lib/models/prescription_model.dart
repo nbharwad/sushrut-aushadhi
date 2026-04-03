@@ -38,6 +38,8 @@ class PrescriptionModel {
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? reviewedBy;
+  final DateTime? reviewedAt;
 
   PrescriptionModel({
     required this.id,
@@ -49,6 +51,8 @@ class PrescriptionModel {
     this.notes,
     required this.createdAt,
     required this.updatedAt,
+    this.reviewedBy,
+    this.reviewedAt,
   });
 
   factory PrescriptionModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -62,6 +66,8 @@ class PrescriptionModel {
       notes: data['notes'],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      reviewedBy: data['reviewedBy'],
+      reviewedAt: (data['reviewedAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -75,6 +81,8 @@ class PrescriptionModel {
       'notes': notes,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      if (reviewedBy != null) 'reviewedBy': reviewedBy,
+      if (reviewedAt != null) 'reviewedAt': Timestamp.fromDate(reviewedAt!),
     };
   }
 
@@ -88,6 +96,8 @@ class PrescriptionModel {
     String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? reviewedBy,
+    DateTime? reviewedAt,
   }) {
     return PrescriptionModel(
       id: id ?? this.id,
@@ -99,6 +109,8 @@ class PrescriptionModel {
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      reviewedBy: reviewedBy ?? this.reviewedBy,
+      reviewedAt: reviewedAt ?? this.reviewedAt,
     );
   }
 }

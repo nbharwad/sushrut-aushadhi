@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -21,12 +24,34 @@ import '../../features/profile/profile_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../providers/auth_provider.dart';
 
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
+  }
+
+  late final StreamSubscription<dynamic> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
+final isVerifyingProvider = StateProvider<bool>((ref) => false);
+
 final goRouterProvider = Provider<GoRouter>((ref) {
-  final isAdmin = ref.watch(isAdminProvider);
+  final authReady = ref.watch(authReadyProvider);
+  final isVerifying = ref.watch(isVerifyingProvider);
+  final authListener = GoRouterRefreshStream(FirebaseAuth.instance.authStateChanges());
 
   return GoRouter(
     initialLocation: '/splash',
+    refreshListenable: authListener,
     redirect: (context, state) {
+      if (isVerifying) return null;
+
       final user = FirebaseAuth.instance.currentUser;
       final location = state.matchedLocation;
 
@@ -42,7 +67,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       if (user == null && isProtected) return '/login';
 
-      if (location.startsWith('/admin') && !isAdmin) return '/home';
+      if (location.startsWith('/admin') && !authReady) return '/home';
+
+      if (location.startsWith('/admin')) {
+        final roleAsync = ref.read(roleProvider);
+        final role = roleAsync.valueOrNull;
+        if (role != 'admin') return '/home';
+      }
 
       return null;
     },

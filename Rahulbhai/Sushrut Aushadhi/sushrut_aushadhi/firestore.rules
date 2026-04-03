@@ -6,15 +6,16 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function hasRole(role) {
+      return isSignedIn() && request.auth.token.role == role;
+    }
+
     function isAdmin() {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid))
-          .data.isAdmin == true;
+      return hasRole('admin');
     }
 
     function isDelivery() {
-      return isSignedIn() && request.auth.token.role == 'delivery';
+      return hasRole('delivery');
     }
 
     function isAdminOrDelivery() {
@@ -26,14 +27,15 @@ service cloud.firestore {
     }
 
     function isValidUserData() {
-      let allowedKeys = ['name', 'phone', 'address', 'pincode', 'fcmToken', 'createdAt'];
+      let allowedKeys = ['name', 'phone', 'address', 'pincode', 'fcmToken', 'createdAt', 'role', 'updatedAt', 'lastLoginAt', 'isActive'];
       return request.resource.data.keys().hasOnly(allowedKeys);
     }
 
     function isValidOrderData() {
       let allowedKeys = ['orderId', 'userId', 'userPhone', 'userName', 'deliveryAddress',
                         'items', 'prescriptionUrl', 'totalAmount', 'status', 'paymentMethod',
-                        'paymentStatus', 'notes', 'rating', 'createdAt', 'updatedAt', 'statusHistory'];
+                        'paymentStatus', 'notes', 'rating', 'createdAt', 'updatedAt', 'statusHistory',
+                        'isTotalValidated', 'cancelReason'];
       let hasValidKeys = request.resource.data.keys().hasOnly(allowedKeys);
       let userIdMatches = request.resource.data.userId == request.auth.uid;
       let amount = request.resource.data.totalAmount;
@@ -49,7 +51,7 @@ service cloud.firestore {
     }
 
     function isValidAdminPrescriptionUpdate() {
-      let allowedKeys = ['status', 'notes', 'updatedAt'];
+      let allowedKeys = ['status', 'notes', 'updatedAt', 'reviewedBy', 'reviewedAt'];
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys);
     }
 
@@ -68,7 +70,7 @@ service cloud.firestore {
     }
 
     function isValidAdminOrderUpdate() {
-      let allowedKeys = ['status', 'notes', 'updatedAt', 'assignedDeliveryId'];
+      let allowedKeys = ['status', 'notes', 'updatedAt', 'updatedBy', 'assignedDeliveryId'];
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys);
     }
 

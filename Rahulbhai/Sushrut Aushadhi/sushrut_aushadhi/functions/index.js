@@ -282,6 +282,33 @@ exports.validatePrescription = onDocumentCreated(
   }
 );
 
+exports.onPrescriptionReview = onDocumentUpdated(
+  'prescriptions/{prescriptionId}',
+  async (event) => {
+    const newData = event.data.after.data();
+    const previousData = event.data.before.data();
+    const prescriptionId = event.params.prescriptionId;
+    
+    if (previousData.status !== newData.status) {
+      console.log(`Prescription ${prescriptionId} status changed: ${previousData.status} -> ${newData.status}`);
+      
+      await db.collection('admin_audit_log').add({
+        action: 'prescription_review',
+        performedBy: newData.reviewedBy || 'system',
+        targetId: prescriptionId,
+        targetCollection: 'prescriptions',
+        previousStatus: previousData.status,
+        newStatus: newData.status,
+        timestamp: FieldValue.serverTimestamp(),
+      });
+      
+      return { status: 'logged', prescriptionId };
+    }
+    
+    return Promise.resolve({ status: 'no_change' });
+  }
+);
+
 exports.setUserRole = onCall(async (request) => {
   const { uid, role } = request.data;
 
@@ -307,8 +334,9 @@ exports.setUserRole = onCall(async (request) => {
 
   await auth.setCustomUserClaims(uid, { role: role });
   await db.collection('users').doc(uid).update({
+    role: role,
     isAdmin: role === 'admin',
-    role: role
+    updatedAt: FieldValue.serverTimestamp()
   });
 
   return { success: true, uid, role };
@@ -333,7 +361,11 @@ exports.revokeAdminRole = onCall(async (request) => {
   }
 
   await auth.setCustomUserClaims(uid, { role: 'customer' });
-  await db.collection('users').doc(uid).update({ isAdmin: false, role: 'customer' });
+  await db.collection('users').doc(uid).update({
+    role: 'customer',
+    isAdmin: false,
+    updatedAt: FieldValue.serverTimestamp()
+  });
 
   return { success: true, uid, role: 'customer' };
 });
@@ -491,8 +523,9 @@ exports.bootstrapFirstAdmin = onCall(async (request) => {
   
   await auth.setCustomUserClaims(uid, { role: 'admin' });
   await db.collection('users').doc(uid).update({ 
+    role: 'admin',
     isAdmin: true,
-    role: 'admin'
+    updatedAt: FieldValue.serverTimestamp()
   });
   
   return { success: true, uid, role: 'admin' };
@@ -557,6 +590,7 @@ exports.onUserCreated = user().onCreate(async (user) => {
       createdAt: FieldValue.serverTimestamp(),
       isAdmin: false,
       role: 'customer',
+      isActive: true,
     });
     console.log(`Created default user document for ${user.uid}`);
   }
