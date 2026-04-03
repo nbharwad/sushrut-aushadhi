@@ -189,14 +189,14 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
               ? SnackBarAction(
                   label: 'View Cart',
                   textColor: Colors.white,
-                  onPressed: () => context.push('/cart'),
+                  onPressed: () => context.go('/cart'),
                 )
               : null,
         ),
       );
 
       if (result.isSuccess && mounted) {
-        context.push('/cart');
+        context.go('/cart');
       }
     } catch (e) {
       if (!mounted) return;

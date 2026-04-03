@@ -156,92 +156,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final compact = constraints.maxWidth < 340;
-            final details = Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.medicine.name,
-                    style: GoogleFonts.sora(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    item.medicine.manufacturer,
-                    style: GoogleFonts.sora(fontSize: 10, color: AppColors.textSecondary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '\u20B9${item.medicine.price.toStringAsFixed(0)}',
-                    style: GoogleFonts.sora(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            );
-
-            final quantityControls = Container(
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      if (item.quantity > 1) {
-                        ref.read(cartProvider.notifier).updateQuantity(
-                              item.medicine.id,
-                              item.quantity - 1,
-                            );
-                      } else {
-                        ref.read(cartProvider.notifier).removeItem(item.medicine.id);
-                      }
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(Icons.remove, size: 16),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 28,
-                    child: Text(
-                      '${item.quantity}',
-                      style: GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      ref.read(cartProvider.notifier).updateQuantity(
-                            item.medicine.id,
-                            item.quantity + 1,
-                          );
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(Icons.add, size: 16),
-                    ),
-                  ),
-                ],
-              ),
-            );
-
-            if (compact) {
+            final isVerySmall = constraints.maxWidth < 340;
+            if (isVerySmall) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -249,40 +165,222 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildMedicineThumb(),
-                      const SizedBox(width: 12),
-                      details,
-                      IconButton(
-                        onPressed: () => ref.read(cartProvider.notifier).removeItem(item.medicine.id),
-                        icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
+                      SizedBox(width: context.adaptiveSpace(10)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.medicine.name,
+                              style: GoogleFonts.sora(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              item.medicine.manufacturer,
+                              style: GoogleFonts.sora(fontSize: 10, color: AppColors.textSecondary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '\u20B9${item.medicine.price.toStringAsFixed(0)}',
+                                style: GoogleFonts.sora(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: context.adaptiveSpace(6)),
+                      GestureDetector(
+                        onTap: () => ref.read(cartProvider.notifier).removeItem(item.medicine.id),
+                        child: Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFEBEE),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.delete_outline,
+                            color: Color(0xFFE53935),
+                            size: 14,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Align(alignment: Alignment.centerRight, child: quantityControls),
+                  SizedBox(height: context.adaptiveSpace(10)),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _buildQuantityControls(item, isVerySmall: true),
+                  ),
                 ],
               );
             }
 
             return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildMedicineThumb(),
-                const SizedBox(width: 12),
-                details,
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      onPressed: () => ref.read(cartProvider.notifier).removeItem(item.medicine.id),
-                      icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
-                    ),
-                    const SizedBox(height: 4),
-                    quantityControls,
-                  ],
+                SizedBox(width: context.adaptiveSpace(10)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.medicine.name,
+                        style: GoogleFonts.sora(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.medicine.manufacturer,
+                        style: GoogleFonts.sora(fontSize: 10, color: AppColors.textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '\u20B9${item.medicine.price.toStringAsFixed(0)}',
+                          style: GoogleFonts.sora(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: context.adaptiveSpace(8)),
+                SizedBox(
+                  width: 84.0,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: () => ref.read(cartProvider.notifier).removeItem(item.medicine.id),
+                        child: Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFEBEE),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.delete_outline,
+                            color: Color(0xFFE53935),
+                            size: 14,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: context.adaptiveSpace(6)),
+                      _buildQuantityControls(item, isVerySmall: false),
+                    ],
+                  ),
                 ),
               ],
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildQuantityControls(dynamic item, {required bool isVerySmall}) {
+    return Container(
+      height: 28,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7F5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFEDF2ED)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () {
+              if (item.quantity > 1) {
+                ref.read(cartProvider.notifier).updateQuantity(
+                      item.medicine.id,
+                      item.quantity - 1,
+                    );
+              } else {
+                ref.read(cartProvider.notifier).removeItem(item.medicine.id);
+              }
+            },
+            child: SizedBox(
+              width: isVerySmall ? 22.0 : 26.0,
+              height: 28,
+              child: Center(
+                child: Text(
+                  '−',
+                  style: GoogleFonts.sora(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Container(
+            width: isVerySmall ? 24.0 : 28.0,
+            height: 28,
+            alignment: Alignment.center,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '${item.quantity}',
+                style: GoogleFonts.sora(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => ref.read(cartProvider.notifier).updateQuantity(
+                  item.medicine.id,
+                  item.quantity + 1,
+                ),
+            child: SizedBox(
+              width: isVerySmall ? 22.0 : 26.0,
+              height: 28,
+              child: Center(
+                child: Text(
+                  '+',
+                  style: GoogleFonts.sora(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

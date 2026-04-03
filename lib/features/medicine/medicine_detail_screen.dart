@@ -153,7 +153,7 @@ class _MedicineDetailScreenState extends ConsumerState<MedicineDetailScreen> {
           children: [
             IconButton(
               icon: const Icon(Icons.shopping_cart_outlined, color: AppColors.textPrimary, size: 20),
-              onPressed: () => context.push('/cart'),
+              onPressed: () => context.go('/cart'),
             ),
             if (cartCount > 0)
               Positioned(
@@ -733,7 +733,7 @@ class _MedicineDetailScreenState extends ConsumerState<MedicineDetailScreen> {
         action: SnackBarAction(
           label: 'View Cart',
           textColor: Colors.white,
-          onPressed: () => context.push('/cart'),
+          onPressed: () => context.go('/cart'),
         ),
       ),
     );

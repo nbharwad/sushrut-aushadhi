@@ -10,7 +10,6 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/responsive.dart';
 import '../../services/remote_config_service.dart';
-import '../../core/widgets/bottom_nav.dart';
 import '../../core/widgets/menu_item_tile.dart';
 import '../../core/di/service_providers.dart';
 import '../../models/user_model.dart';
@@ -152,7 +151,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
         ),
-        BottomNavWidget(currentIndex: 4, cartItemCount: cartItemCount),
       ],
     );
   }
@@ -213,7 +211,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                     ),
-                    onTap: () => context.push('/orders'),
+                    onTap: () => context.go('/orders'),
                   ),
                   MenuItemTile(
                     icon: const Icon(Icons.location_on_outlined, color: Color(0xFF1E88E5), size: 18),
@@ -328,7 +326,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
         ),
-        BottomNavWidget(currentIndex: 4, cartItemCount: cartItemCount),
       ],
     );
   }
