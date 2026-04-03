@@ -1,17 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/order_model.dart';
 import 'auth_provider.dart';
+import '../core/di/service_providers.dart';
 
 final ordersProvider = StreamProvider<List<OrderModel>>((ref) {
   final firestoreService = ref.watch(firestoreServiceProvider);
-  final auth = FirebaseAuth.instance;
-  
-  if (auth.currentUser == null) {
+  final uid = ref.watch(authStateProvider).valueOrNull?.uid;
+
+  if (uid == null) {
     return Stream.value([]);
   }
-  
-  return firestoreService.getUserOrders(auth.currentUser!.uid);
+
+  return firestoreService.getUserOrders(uid);
 });
 
 final allOrdersProvider = StreamProvider<List<OrderModel>>((ref) {

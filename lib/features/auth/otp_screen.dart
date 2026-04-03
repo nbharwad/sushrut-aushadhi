@@ -182,18 +182,21 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     }
   }
 
-  Future<bool> _handleBackPressed() async {
+  Future<void> _handleBackPressed() async {
     if (_isLoading) {
-      return false;
+      return;
     }
     context.go('/login');
-    return false;
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _handleBackPressed,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _handleBackPressed();
+      },
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
