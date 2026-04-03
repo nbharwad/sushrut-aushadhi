@@ -594,6 +594,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(28),
+          topRight: Radius.circular(28),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.shade300,

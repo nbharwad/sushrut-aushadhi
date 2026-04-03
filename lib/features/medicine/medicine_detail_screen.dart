@@ -299,31 +299,6 @@ class _MedicineDetailScreenState extends ConsumerState<MedicineDetailScreen> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 320;
-          final controls = Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildQuantityButton(
-                icon: Icons.remove,
-                onTap: _quantity > 1 ? () => setState(() => _quantity--) : null,
-              ),
-              SizedBox(
-                width: 40,
-                child: Text(
-                  '$_quantity',
-                  style: GoogleFonts.sora(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              _buildQuantityButton(
-                icon: Icons.add,
-                onTap: _quantity < 10 ? () => setState(() => _quantity++) : null,
-              ),
-            ],
-          );
 
           if (compact) {
             return Column(
@@ -338,7 +313,25 @@ class _MedicineDetailScreenState extends ConsumerState<MedicineDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                controls,
+                Row(
+                  children: [
+                    _buildQuantityDecrement(),
+                    Container(
+                      width: 28,
+                      height: 28,
+                      alignment: Alignment.center,
+                      child: Text(
+                        '$_quantity',
+                        style: GoogleFonts.sora(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    _buildQuantityIncrement(),
+                  ],
+                ),
               ],
             );
           }
@@ -354,7 +347,25 @@ class _MedicineDetailScreenState extends ConsumerState<MedicineDetailScreen> {
                   color: AppColors.textPrimary,
                 ),
               ),
-              controls,
+              Row(
+                children: [
+                  _buildQuantityDecrement(),
+                  Container(
+                    width: 28,
+                    height: 28,
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$_quantity',
+                      style: GoogleFonts.sora(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  _buildQuantityIncrement(),
+                ],
+              ),
             ],
           );
         },
@@ -362,21 +373,57 @@ class _MedicineDetailScreenState extends ConsumerState<MedicineDetailScreen> {
     );
   }
 
-  Widget _buildQuantityButton({required IconData icon, VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+  Widget _buildQuantityDecrement() {
+    final canDecrease = _quantity > 1;
+    return GestureDetector(
+      onTap: canDecrease ? () => setState(() => _quantity--) : null,
       child: Container(
-        width: 32,
-        height: 32,
+        width: 28,
+        height: 28,
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.primary),
+          color: canDecrease ? AppColors.primaryLight : const Color(0xFFF5F5F5),
           borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: canDecrease ? AppColors.primary : const Color(0xFFE0E0E0),
+          ),
         ),
-        child: Icon(
-          icon,
-          color: onTap == null ? AppColors.textSecondary : AppColors.primary,
-          size: 16,
+        child: Center(
+          child: Text(
+            '−',
+            style: GoogleFonts.sora(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: canDecrease ? AppColors.primary : AppColors.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuantityIncrement() {
+    final canIncrease = _quantity < 10;
+    return GestureDetector(
+      onTap: canIncrease ? () => setState(() => _quantity++) : null,
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: canIncrease ? AppColors.primaryLight : const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: canIncrease ? AppColors.primary : const Color(0xFFE0E0E0),
+          ),
+        ),
+        child: Center(
+          child: Text(
+            '+',
+            style: GoogleFonts.sora(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: canIncrease ? AppColors.primary : AppColors.textSecondary,
+            ),
+          ),
         ),
       ),
     );
@@ -517,22 +564,22 @@ class _MedicineDetailScreenState extends ConsumerState<MedicineDetailScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          _whyUsRow('✅', 'Genuine medicines only', '100% authentic, sourced from licensed distributors'),
-          _whyUsRow('👨‍⚕️', 'Pharmacist verified', 'Every order checked by registered pharmacist'),
-          _whyUsRow('🚚', 'Fast delivery', 'Delivered within 2 hours in Bengaluru'),
-          _whyUsRow('↩️', 'Easy returns', 'Hassle-free return for damaged medicines'),
+          _whyUsRow(Icons.check_circle_rounded, 'Genuine medicines only', '100% authentic, sourced from licensed distributors'),
+          _whyUsRow(Icons.badge_rounded, 'Pharmacist verified', 'Every order checked by registered pharmacist'),
+          _whyUsRow(Icons.local_shipping_rounded, 'Fast delivery', 'Delivered within 2 hours in Bengaluru'),
+          _whyUsRow(Icons.replay_rounded, 'Easy returns', 'Hassle-free return for damaged medicines'),
         ],
       ),
     );
   }
 
-  Widget _whyUsRow(String emoji, String title, String subtitle) {
+  Widget _whyUsRow(IconData icon, String title, String subtitle) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 16)),
+          Icon(icon, size: 18, color: AppColors.primary),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -573,6 +620,10 @@ class _MedicineDetailScreenState extends ConsumerState<MedicineDetailScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(28),
+            topRight: Radius.circular(28),
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.grey.shade300,

@@ -208,10 +208,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 Widget _trustBanner() {
     final badges = [
-      _trustBadge('OK', 'Licensed'),
-      _trustBadge('Rx', 'Pharmacist'),
-      _trustBadge('2H', '2Hr Delivery'),
-      _trustBadge('19K', '19,000+ Meds'),
+      _trustBadge(Icons.verified_rounded, 'Licensed'),
+      _trustBadge(Icons.medical_services_rounded, 'Pharmacist'),
+      _trustBadge(Icons.local_shipping_rounded, '2Hr Delivery'),
+      _trustBadge(Icons.inventory_2_rounded, '19K+ Meds'),
     ];
 
     return Container(
@@ -247,11 +247,11 @@ Widget _trustBanner() {
 );
   }
 
-  Widget _trustBadge(String emoji, String label) {
+  Widget _trustBadge(IconData icon, String label) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 14)),
+        Icon(icon, size: 18, color: const Color(0xFF0F6E56)),
         const SizedBox(height: 2),
         Text(
           label,
