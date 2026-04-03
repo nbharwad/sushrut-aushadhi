@@ -13,11 +13,22 @@ import '../core/utils/app_logger.dart';
 import 'rate_limit_service.dart';
 
 class PrescriptionService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
-  final ImagePicker _picker = ImagePicker();
-  final Uuid _uuid = const Uuid();
-  final _rateLimit = RateLimitService();
+  final FirebaseFirestore _db;
+  final FirebaseStorage _storage;
+  final ImagePicker _picker;
+  final Uuid _uuid;
+  final RateLimitService _rateLimit;
+
+  PrescriptionService({
+    FirebaseFirestore? firestore,
+    FirebaseStorage? storage,
+    ImagePicker? picker,
+    RateLimitService? rateLimitService,
+  })  : _db = firestore ?? FirebaseFirestore.instance,
+        _storage = storage ?? FirebaseStorage.instance,
+        _picker = picker ?? ImagePicker(),
+        _uuid = const Uuid(),
+        _rateLimit = rateLimitService ?? RateLimitService();
 
   static const List<String> allowedImageTypes = ['jpg', 'jpeg', 'png', 'webp'];
   static const int maxFileSizeMB = 10;

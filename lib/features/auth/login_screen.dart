@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
@@ -8,19 +9,18 @@ import '../../core/utils/responsive.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../core/widgets/custom_text_field.dart';
-import '../../services/auth_service.dart';
+import '../../core/di/service_providers.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
-  final _authService = AuthService();
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -42,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final phone = '+91${_phoneController.text.trim()}';
 
-    await _authService.sendOtp(
+    await ref.read(authServiceProvider).sendOtp(
       phoneNumber: phone,
       onCodeSent: (verificationId) {
         if (!mounted) {

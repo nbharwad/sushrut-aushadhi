@@ -10,9 +10,13 @@ import 'local_data_service.dart';
 import 'rate_limit_service.dart';
 
 class FirestoreService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFirestore _db;
   final _uuid = const Uuid();
-  final _rateLimit = RateLimitService();
+  late final RateLimitService _rateLimit;
+
+  FirestoreService({FirebaseFirestore? firestore}) : _db = firestore ?? FirebaseFirestore.instance {
+    _rateLimit = RateLimitService(firestore: _db);
+  }
 
   String placeOrderId() => _uuid.v4();
 

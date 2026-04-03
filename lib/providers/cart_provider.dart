@@ -4,10 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/medicine_model.dart';
 import '../models/cart_item_model.dart';
 import '../models/order_model.dart';
-import '../services/firestore_service.dart';
+import '../core/di/service_providers.dart';
 
 class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier() : super([]) {
+  final Ref _ref;
+  CartNotifier(this._ref) : super([]) {
     _loadCart();
   }
 
@@ -65,7 +66,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   Future<void> reorderFromOrder(OrderModel order) async {
     state = [];
     
-    final firestoreService = FirestoreService();
+    final firestoreService = _ref.read(firestoreServiceProvider);
     int added = 0;
     int outOfStock = 0;
     int notFound = 0;
@@ -144,7 +145,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 }
 
 final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
-  return CartNotifier();
+  return CartNotifier(ref);
 });
 
 final cartTotalProvider = Provider<double>((ref) {

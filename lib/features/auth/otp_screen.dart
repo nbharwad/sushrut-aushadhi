@@ -1,16 +1,19 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/widgets/custom_button.dart';
-import '../../services/auth_service.dart';
+import '../../providers/auth_provider.dart';
+import '../../core/di/service_providers.dart';
 
-class OtpScreen extends StatefulWidget {
+class OtpScreen extends ConsumerStatefulWidget {
   final String verificationId;
   final String phoneNumber;
 
@@ -21,11 +24,10 @@ class OtpScreen extends StatefulWidget {
   });
 
   @override
-  State<OtpScreen> createState() => _OtpScreenState();
+  ConsumerState<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpScreenState extends State<OtpScreen> {
-  final _authService = AuthService();
+class _OtpScreenState extends ConsumerState<OtpScreen> {
   final List<TextEditingController> _controllers =
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
@@ -86,7 +88,7 @@ class _OtpScreenState extends State<OtpScreen> {
     });
 
     try {
-      final user = await _authService.verifyOtp(
+      final user = await ref.read(authServiceProvider).verifyOtp(
         verificationId: _verificationId,
         smsCode: _otp,
       );
@@ -95,7 +97,12 @@ class _OtpScreenState extends State<OtpScreen> {
         return;
       }
       if (user != null) {
-        context.go('/cart');
+        // Force-refresh the JWT token so custom claims (role) are available
+        // before the router evaluates admin/customer redirect.
+        await FirebaseAuth.instance.currentUser?.getIdTokenResult(true);
+        ref.invalidate(roleProvider);
+        if (!mounted) return;
+        context.go('/home');
       } else {
         setState(() {
           _errorMessage = 'Failed to verify OTP';
@@ -123,7 +130,7 @@ class _OtpScreenState extends State<OtpScreen> {
       _errorMessage = null;
     });
 
-    await _authService.sendOtp(
+    await ref.read(authServiceProvider).sendOtp(
       phoneNumber: widget.phoneNumber,
       onCodeSent: (verificationId) {
         if (!mounted) {

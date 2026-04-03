@@ -11,6 +11,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/widgets/bottom_nav.dart';
 import '../../core/widgets/menu_item_tile.dart';
+import '../../core/di/service_providers.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
@@ -685,7 +686,7 @@ class _EditProfileBottomSheetState extends ConsumerState<EditProfileBottomSheet>
         throw Exception('User not found');
       }
 
-      await ref.read(authServiceProvider).updateUser(user.uid, {
+      await ref.read(firestoreServiceProvider).updateUser(user.uid, {
         'name': _nameController.text.trim(),
         'address': _addressController.text.trim(),
         'pincode': _pincodeController.text.trim(),

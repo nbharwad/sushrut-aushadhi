@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../models/medicine_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/medicines_provider.dart';
-import '../../services/firestore_service.dart';
+import '../../core/di/service_providers.dart';
 import '../../services/search_history_service.dart';
 import '../../core/utils/helpers.dart';
 
@@ -337,7 +337,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               return InkWell(
                 onTap: () async {
                   await _saveSearch(_query);
-                  final full = await FirestoreService().getMedicineById(medicine.id);
+                  final full = await ref.read(firestoreServiceProvider).getMedicineById(medicine.id);
                   if (full != null && mounted) {
                     context.push('/medicine', extra: full.toMap());
                   }
