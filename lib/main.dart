@@ -3,16 +3,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/constants/app_strings.dart';
 import 'core/constants/app_theme.dart';
-import 'core/routes/app_router.dart';
+import 'core/routes/app_router.dart' show goRouterProvider;
 import 'core/widgets/connectivity_wrapper.dart';
 import 'firebase_options.dart';
 import 'services/connectivity_service.dart';
+import 'services/medicine_cache_service.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +29,8 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Initialize Crashlytics
   await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
@@ -38,6 +49,8 @@ Future<void> main() async {
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
 
+  MedicineCacheService.loadCache();
+
   await ConnectivityService.initialize();
 
   await SystemChrome.setPreferredOrientations([
@@ -53,16 +66,17 @@ Future<void> main() async {
   });
 }
 
-class SushrutAushadhiApp extends StatelessWidget {
+class SushrutAushadhiApp extends ConsumerWidget {
   const SushrutAushadhiApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(goRouterProvider);
     return MaterialApp.router(
       title: AppStrings.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      routerConfig: appRouter,
+      routerConfig: router,
       builder: (context, child) => ConnectivityWrapper(
         child: child ?? const SizedBox(),
       ),

@@ -69,6 +69,42 @@ class OrderItem {
   }
 }
 
+class StatusHistoryEntry {
+  final String status;
+  final DateTime timestamp;
+  final String updatedBy;
+  final String? role;
+  final String? note;
+
+  StatusHistoryEntry({
+    required this.status,
+    required this.timestamp,
+    required this.updatedBy,
+    this.role,
+    this.note,
+  });
+
+  factory StatusHistoryEntry.fromMap(Map<String, dynamic> data) {
+    return StatusHistoryEntry(
+      status: data['status'] ?? '',
+      timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedBy: data['updatedBy'] ?? 'system',
+      role: data['role'] as String?,
+      note: data['note'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'status': status,
+      'timestamp': Timestamp.fromDate(timestamp),
+      'updatedBy': updatedBy,
+      if (role != null) 'role': role,
+      if (note != null) 'note': note,
+    };
+  }
+}
+
 class OrderModel {
   final String orderId;
   final String userId;
@@ -85,6 +121,7 @@ class OrderModel {
   final int? rating;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final List<StatusHistoryEntry> statusHistory;
 
   OrderModel({
     required this.orderId,
@@ -102,6 +139,7 @@ class OrderModel {
     this.rating,
     required this.createdAt,
     required this.updatedAt,
+    this.statusHistory = const [],
   });
 
   factory OrderModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -124,6 +162,10 @@ class OrderModel {
       rating: data['rating'],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      statusHistory: (data['statusHistory'] as List?)
+              ?.map((e) => StatusHistoryEntry.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 
@@ -144,7 +186,46 @@ class OrderModel {
       'rating': rating,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'statusHistory': statusHistory.map((e) => e.toMap()).toList(),
     };
+  }
+
+  OrderModel copyWith({
+    String? orderId,
+    String? userId,
+    String? userPhone,
+    String? userName,
+    String? deliveryAddress,
+    List<OrderItem>? items,
+    String? prescriptionUrl,
+    double? totalAmount,
+    OrderStatus? status,
+    String? paymentMethod,
+    String? paymentStatus,
+    String? notes,
+    int? rating,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    List<StatusHistoryEntry>? statusHistory,
+  }) {
+    return OrderModel(
+      orderId: orderId ?? this.orderId,
+      userId: userId ?? this.userId,
+      userPhone: userPhone ?? this.userPhone,
+      userName: userName ?? this.userName,
+      deliveryAddress: deliveryAddress ?? this.deliveryAddress,
+      items: items ?? this.items,
+      prescriptionUrl: prescriptionUrl ?? this.prescriptionUrl,
+      totalAmount: totalAmount ?? this.totalAmount,
+      status: status ?? this.status,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      notes: notes ?? this.notes,
+      rating: rating ?? this.rating,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      statusHistory: statusHistory ?? this.statusHistory,
+    );
   }
 
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
