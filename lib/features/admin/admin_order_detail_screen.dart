@@ -33,16 +33,47 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
   OrderStatus? _selectedStatus;
   bool _isUpdating = false;
 
+  static const Map<String, List<String>> validTransitions = {
+    'pending': ['confirmed', 'cancelled'],
+    'confirmed': ['preparing', 'cancelled'],
+    'preparing': ['out_for_delivery', 'cancelled'],
+    'out_for_delivery': ['delivered', 'cancelled'],
+    'delivered': [],
+    'cancelled': [],
+  };
+
   Future<void> _updateStatus() async {
     if (_selectedStatus == null) {
+      return;
+    }
+
+    final currentOrder = ref.read(orderByIdProvider(widget.orderId)).value;
+    if (currentOrder == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Order not found')),
+      );
+      return;
+    }
+
+    final currentStatus = currentOrder.status.name;
+    final newStatus = _selectedStatus!.name;
+
+    final allowedTransitions = validTransitions[currentStatus] ?? [];
+    if (!allowedTransitions.contains(newStatus)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cannot change from ${currentOrder.status.displayName} to ${_selectedStatus!.displayName}'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
     setState(() => _isUpdating = true);
 
     try {
-      final newStatus = _selectedStatus!.name;
-      
       await FirebaseFirestore.instance
           .collection('orders')
           .doc(widget.orderId)
