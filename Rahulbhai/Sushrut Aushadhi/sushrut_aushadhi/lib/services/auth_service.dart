@@ -98,40 +98,6 @@ class AuthService {
     return newUser;
   }
 
-  Future<UserModel?> getUser(String uid) async {
-    final doc = await _db.collection('users').doc(uid).get();
-    if (doc.exists) {
-      return UserModel.fromFirestore(doc.data()!, uid);
-    }
-    return null;
-  }
-
-  Future<void> updateUser(String uid, Map<String, dynamic> data) async {
-    final sanitizedData = <String, dynamic>{};
-    
-    if (data.containsKey('name') && data['name'] != null) {
-      sanitizedData['name'] = _sanitizeString(data['name'] as String);
-    }
-    if (data.containsKey('address') && data['address'] != null) {
-      sanitizedData['address'] = _sanitizeString(data['address'] as String);
-    }
-    if (data.containsKey('pincode') && data['pincode'] != null) {
-      sanitizedData['pincode'] = data['pincode'];
-    }
-    if (data.containsKey('fcmToken') && data['fcmToken'] != null) {
-      sanitizedData['fcmToken'] = data['fcmToken'];
-    }
-
-    await _db.collection('users').doc(uid).update(sanitizedData);
-  }
-
-  String _sanitizeString(String input) {
-    return input
-        .trim()
-        .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '')
-        .replaceAll(RegExp(r'<[^>]*>'), '');
-  }
-
   Future<void> signOut() async {
     await _auth.signOut();
   }

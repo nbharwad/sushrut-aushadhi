@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/order_model.dart';
 import 'auth_provider.dart';
+import '../core/di/service_providers.dart';
 
 final ordersProvider = StreamProvider<List<OrderModel>>((ref) {
   final firestoreService = ref.watch(firestoreServiceProvider);

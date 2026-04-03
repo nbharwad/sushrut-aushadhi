@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/order_model.dart';
 
@@ -58,5 +59,22 @@ class NotificationService {
     if (await canLaunchUrl(Uri.parse(telUrl))) {
       await launchUrl(Uri.parse(telUrl));
     }
+  }
+
+  Future<void> addLocalNotification({
+    required String title,
+    required String body,
+    required String type,
+    String? orderId,
+  }) async {
+    final doc = _db.collection('notifications').doc();
+    await doc.set({
+      'title': title,
+      'body': body,
+      'type': type,
+      'orderId': orderId,
+      'isRead': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 }

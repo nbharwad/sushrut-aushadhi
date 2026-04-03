@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/widgets/main_shell.dart';
 import '../../features/admin/admin_order_detail_screen.dart';
 import '../../features/admin/admin_orders_screen.dart';
 import '../../features/admin/admin_prescriptions_screen.dart';
@@ -72,13 +73,50 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         );
       },
     ),
-    GoRoute(
-      path: '/home',
-      builder: (context, state) => const HomeScreen(),
-    ),
-    GoRoute(
-      path: '/search',
-      builder: (context, state) => const SearchScreen(),
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) => MainShell(navigationShell: navigationShell),
+      branches: [
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/home',
+              builder: (context, state) => const HomeScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/search',
+              builder: (context, state) => const SearchScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/cart',
+              builder: (context, state) => const CartScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/orders',
+              builder: (context, state) => const OrdersScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/profile',
+              builder: (context, state) => const ProfileScreen(),
+            ),
+          ],
+        ),
+      ],
     ),
     GoRoute(
       path: '/medicine',
@@ -112,20 +150,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       },
     ),
     GoRoute(
-      path: '/cart',
-      builder: (context, state) => const CartScreen(),
-    ),
-    GoRoute(
       path: '/prescription',
       builder: (context, state) => const PrescriptionUploadScreen(),
     ),
     GoRoute(
       path: '/my-prescriptions',
       builder: (context, state) => const MyPrescriptionsScreen(),
-    ),
-    GoRoute(
-      path: '/orders',
-      builder: (context, state) => const OrdersScreen(),
     ),
     GoRoute(
       path: '/order/:id',
@@ -153,10 +183,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       },
     ),
     GoRoute(
-      path: '/profile',
-      builder: (context, state) => const ProfileScreen(),
-    ),
-    GoRoute(
       path: '/admin',
       builder: (context, state) => const AdminOrdersScreen(),
     ),
@@ -174,6 +200,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       path: '/admin/prescriptions',
       builder: (context, state) => const AdminPrescriptionsScreen(),
     ),
-  ],
+    ],
   );
 });

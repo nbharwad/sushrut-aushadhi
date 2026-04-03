@@ -11,7 +11,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/auth_service.dart';
+import '../../core/di/service_providers.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
   final String verificationId;
@@ -28,7 +28,6 @@ class OtpScreen extends ConsumerStatefulWidget {
 }
 
 class _OtpScreenState extends ConsumerState<OtpScreen> {
-  final _authService = AuthService();
   final List<TextEditingController> _controllers =
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
@@ -89,7 +88,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     });
 
     try {
-      final user = await _authService.verifyOtp(
+      final user = await ref.read(authServiceProvider).verifyOtp(
         verificationId: _verificationId,
         smsCode: _otp,
       );
@@ -131,7 +130,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       _errorMessage = null;
     });
 
-    await _authService.sendOtp(
+    await ref.read(authServiceProvider).sendOtp(
       phoneNumber: widget.phoneNumber,
       onCodeSent: (verificationId) {
         if (!mounted) {
@@ -183,18 +182,21 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     }
   }
 
-  Future<bool> _handleBackPressed() async {
+  Future<void> _handleBackPressed() async {
     if (_isLoading) {
-      return false;
+      return;
     }
     context.go('/login');
-    return false;
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _handleBackPressed,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _handleBackPressed();
+      },
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
