@@ -828,6 +828,7 @@ class _PrescriptionUploadScreenState
               // ── LEGAL DISCLAIMER ───────────
               Container(
                 padding: EdgeInsets.all(12),
+                margin: EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
                   color: Color(0xFFFFF8E1),
                   borderRadius:
@@ -839,17 +840,13 @@ class _PrescriptionUploadScreenState
                   crossAxisAlignment:
                       CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.warning_amber_rounded,
-                      size: 14,
-                      color: Color(0xFFE65100)),
+                    Text('⚠️', style: TextStyle(fontSize: 14)),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'By uploading, you confirm '
-                        'this is a valid prescription '
-                        'issued by a registered medical '
-                        'practitioner as per Indian '
-                        'drug laws.',
+                        'By uploading, you confirm this is a valid prescription '
+                        'issued by a registered medical practitioner as per '
+                        'Indian drug laws (Drugs & Cosmetics Act, 1940).',
                         style: TextStyle(
                           fontSize: 11,
                           color: Color(0xFFE65100),
