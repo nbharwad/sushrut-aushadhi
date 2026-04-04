@@ -256,6 +256,10 @@ class FirestoreService {
             requiresPrescription: medicine.requiresPrescription,
             description: medicine.description,
             isActive: medicine.isActive,
+            expiryDate: medicine.expiryDate,
+            batchNumber: medicine.batchNumber,
+            schedule: medicine.schedule,
+            hsnCode: medicine.hsnCode,
           ).toMap(),
         );
   }

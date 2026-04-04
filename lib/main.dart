@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_performance/firebase_performance.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,9 +16,11 @@ import 'core/routes/app_router.dart' show goRouterProvider;
 import 'core/utils/app_logger.dart';
 import 'core/widgets/connectivity_wrapper.dart';
 import 'firebase_options.dart';
+import 'providers/notification_handler_provider.dart';
 import 'services/connectivity_service.dart';
 import 'services/medicine_cache_service.dart';
 import 'services/remote_config_service.dart';
+import 'core/utils/performance_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -57,6 +60,7 @@ Future<void> main() async {
   MedicineCacheService.loadCache();
   await ConnectivityService.initialize();
   await RemoteConfigService.initialize();
+  PerformanceService.init();
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -83,6 +87,14 @@ class _SushrutAushadhiAppState extends ConsumerState<SushrutAushadhiApp> with Wi
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeNotifications();
+    });
+  }
+
+  Future<void> _initializeNotifications() async {
+    final router = ref.read(goRouterProvider);
+    await ref.read(notificationHandlerProvider.notifier).initialize(router);
   }
 
   @override
