@@ -10,8 +10,8 @@ import '../../features/admin/admin_lab_orders_screen.dart';
 import '../../features/admin/admin_lab_packages_screen.dart';
 import '../../features/admin/admin_lab_tests_screen.dart';
 import '../../features/admin/admin_order_detail_screen.dart';
-import '../../features/admin/admin_orders_screen.dart';
 import '../../features/admin/admin_prescriptions_screen.dart';
+import '../../features/admin/admin_shell.dart';
 import '../../features/lab/lab_order_detail_screen.dart';
 import '../../features/lab/lab_order_request_screen.dart';
 import '../../features/lab/lab_orders_screen.dart';
@@ -27,6 +27,7 @@ import '../../features/orders/order_confirmation_screen.dart';
 import '../../features/orders/orders_screen.dart';
 import '../../features/prescription/my_prescriptions_screen.dart';
 import '../../features/prescription/prescription_upload_screen.dart';
+import '../../models/prescription_model.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../providers/auth_provider.dart';
@@ -134,7 +135,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           routes: [
             GoRoute(
               path: '/cart',
-              builder: (context, state) => const CartScreen(),
+              builder: (context, state) {
+                final fromProfile = state.uri.queryParameters['fromProfile'] == 'true';
+                return CartScreen(fromProfile: fromProfile);
+              },
             ),
           ],
         ),
@@ -150,7 +154,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           routes: [
             GoRoute(
               path: '/profile',
-              builder: (context, state) => const ProfileScreen(),
+              builder: (context, state) {
+                final redirectTo = state.uri.queryParameters['redirectTo'];
+                return ProfileScreen(redirectTo: redirectTo);
+              },
             ),
           ],
         ),
@@ -189,7 +196,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ),
     GoRoute(
       path: '/prescription',
-      builder: (context, state) => const PrescriptionUploadScreen(),
+      builder: (context, state) {
+        final typeParam = state.uri.queryParameters['type'];
+        final prescriptionType = PrescriptionType.fromString(typeParam);
+        return PrescriptionUploadScreen(prescriptionType: prescriptionType);
+      },
     ),
     GoRoute(
       path: '/my-prescriptions',
@@ -222,14 +233,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ),
     GoRoute(
       path: '/admin',
-      builder: (context, state) => const AdminOrdersScreen(),
+      builder: (context, state) => const AdminShellScreen(),
     ),
     GoRoute(
       path: '/admin/order/:id',
       builder: (context, state) {
         final orderId = state.pathParameters['id'];
         if (orderId == null || orderId.isEmpty) {
-          return const AdminOrdersScreen();
+          return const AdminShellScreen();
         }
         return AdminOrderDetailScreen(orderId: orderId);
       },

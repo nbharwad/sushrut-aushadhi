@@ -19,7 +19,9 @@ import '../../providers/cart_provider.dart';
 import '../../providers/orders_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
-  const ProfileScreen({super.key});
+  final String? redirectTo;
+
+  const ProfileScreen({super.key, this.redirectTo});
 
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
@@ -74,7 +76,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const AddressBottomSheet(),
+      builder: (context) => AddressBottomSheet(redirectTo: widget.redirectTo),
     );
   }
 
@@ -816,7 +818,9 @@ class _EditProfileBottomSheetState extends ConsumerState<EditProfileBottomSheet>
 }
 
 class AddressBottomSheet extends ConsumerStatefulWidget {
-  const AddressBottomSheet({super.key});
+  final String? redirectTo;
+
+  const AddressBottomSheet({super.key, this.redirectTo});
 
   @override
   ConsumerState<AddressBottomSheet> createState() => _AddressBottomSheetState();
@@ -881,6 +885,13 @@ class _AddressBottomSheetState extends ConsumerState<AddressBottomSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Address saved successfully', style: GoogleFonts.sora())),
       );
+
+      if (widget.redirectTo == 'cart') {
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted) {
+          context.go('/cart?fromProfile=true');
+        }
+      }
     } catch (e) {
       if (!mounted) {
         return;

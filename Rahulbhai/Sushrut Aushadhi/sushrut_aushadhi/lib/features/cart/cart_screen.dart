@@ -10,12 +10,15 @@ import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/login_prompt_widget.dart';
 import '../../core/di/service_providers.dart';
 import '../../models/order_model.dart';
+import '../../models/delivery_address.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../services/connectivity_service.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
-  const CartScreen({super.key});
+  final bool fromProfile;
+
+  const CartScreen({super.key, this.fromProfile = false});
 
   @override
   ConsumerState<CartScreen> createState() => _CartScreenState();
@@ -25,6 +28,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   final _promoController = TextEditingController();
   String? _appliedPromo;
   bool _isProcessing = false;
+  bool _hasAutoProcessed = false;
 
   @override
   void dispose() {
@@ -123,7 +127,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           IconButton(
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            onPressed: () => context.push('/prescription'),
+            onPressed: () => context.push('/prescription?type=medicine'),
             icon: const Icon(Icons.arrow_forward_ios, color: AppColors.accent, size: 16),
           ),
         ],
@@ -797,7 +801,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       return;
     }
 
-    final currentUser = ref.read(currentUserProvider).value;
+    final userAsync = ref.read(currentUserProvider);
+    final currentUser = userAsync.valueOrNull;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -809,11 +814,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       return;
     }
 
-    final isAddressIncomplete = currentUser.phone.isEmpty ||
-        currentUser.address.isEmpty ||
-        currentUser.pincode.isEmpty;
+    final hasPhone = currentUser.phone.isNotEmpty;
+    final hasAddressString = currentUser.address.isNotEmpty;
+    final hasDeliveryAddress = currentUser.deliveryAddress.line1.isNotEmpty ||
+        currentUser.deliveryAddress.city.isNotEmpty ||
+        currentUser.deliveryAddress.pincode.isNotEmpty;
+    final hasAddress = hasAddressString || hasDeliveryAddress;
+    final hasPincode = currentUser.pincode.isNotEmpty ||
+        currentUser.deliveryAddress.pincode.isNotEmpty;
 
-    if (isAddressIncomplete) {
+    if (!hasPhone || !hasAddress || !hasPincode) {
       final shouldFillAddress = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -836,13 +846,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       );
 
       if (shouldFillAddress == true && mounted) {
-        context.go('/profile');
+        context.go('/profile?redirectTo=cart');
       }
       return;
     }
 
+    if (widget.fromProfile && !_hasAutoProcessed) {
+      _hasAutoProcessed = true;
+      await _createOrder();
+      return;
+    }
+
     if (requiresPrescription) {
-      context.push('/prescription');
+      context.push('/prescription?type=medicine');
       return;
     }
 
@@ -855,11 +871,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     try {
       final cartItems = ref.read(cartProvider);
       final cartTotal = ref.read(cartTotalProvider);
-      final currentUser = ref.read(currentUserProvider);
-      final authState = ref.read(authStateProvider);
+      final currentUserAsync = ref.read(currentUserProvider);
+      final authStateAsync = ref.read(authStateProvider);
 
-      final user = currentUser.value;
-      final authUser = authState.value;
+      final user = currentUserAsync.valueOrNull;
+      final authUser = authStateAsync.valueOrNull;
 
       if (user == null || authUser == null) {
         throw Exception('User not authenticated');
@@ -875,12 +891,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         );
       }).toList();
 
+      final deliveryAddress = user.deliveryAddress.line1.isNotEmpty
+          ? user.deliveryAddress
+          : DeliveryAddress(
+              line1: user.address,
+              city: '',
+              state: '',
+              pincode: user.pincode,
+            );
+
       final order = OrderModel(
         orderId: '',
         userId: authUser.uid,
         userPhone: user.phone,
         userName: user.name.isNotEmpty ? user.name : 'Customer',
-        deliveryAddress: user.deliveryAddress,
+        deliveryAddress: deliveryAddress,
         items: orderItemsList,
         totalAmount: cartTotal,
         createdAt: DateTime.now(),
@@ -905,9 +930,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         'subtotal': item.subtotal,
       }).toList();
 
-      final deliveryAddress = user.address.isNotEmpty 
-          ? user.address 
-          : 'Address not provided';
+      final deliveryAddressString = user.deliveryAddress.line1.isNotEmpty
+          ? user.deliveryAddress.toDisplayString()
+          : user.address.isNotEmpty
+              ? user.address
+              : 'Address not provided';
 
       ref.read(cartProvider.notifier).clearCart();
 
@@ -919,7 +946,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         'orderId': newOrderId,
         'totalAmount': cartTotal,
         'items': itemsData,
-        'deliveryAddress': deliveryAddress,
+        'deliveryAddress': deliveryAddressString,
       });
     } catch (e) {
       if (!mounted) {
