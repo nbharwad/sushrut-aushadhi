@@ -124,6 +124,7 @@ class OrderModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<StatusHistoryEntry> statusHistory;
+  final DateTime? deliveredAt;
 
   OrderModel({
     required this.orderId,
@@ -142,6 +143,7 @@ class OrderModel {
     required this.createdAt,
     required this.updatedAt,
     this.statusHistory = const [],
+    this.deliveredAt,
   });
 
   factory OrderModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -168,6 +170,7 @@ class OrderModel {
               ?.map((e) => StatusHistoryEntry.fromMap(e as Map<String, dynamic>))
               .toList() ??
           [],
+      deliveredAt: (data['deliveredAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -189,6 +192,7 @@ class OrderModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'statusHistory': statusHistory.map((e) => e.toMap()).toList(),
+      if (deliveredAt != null) 'deliveredAt': Timestamp.fromDate(deliveredAt!),
     };
   }
 
@@ -209,6 +213,7 @@ class OrderModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     List<StatusHistoryEntry>? statusHistory,
+    DateTime? deliveredAt,
   }) {
     return OrderModel(
       orderId: orderId ?? this.orderId,
@@ -227,6 +232,7 @@ class OrderModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       statusHistory: statusHistory ?? this.statusHistory,
+      deliveredAt: deliveredAt ?? this.deliveredAt,
     );
   }
 
