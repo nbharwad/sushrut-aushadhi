@@ -12,7 +12,6 @@ import '../../core/di/service_providers.dart';
 import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
-import '../../providers/notification_provider.dart';
 import '../../services/connectivity_service.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
@@ -124,7 +123,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           IconButton(
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            onPressed: () => context.push('/prescription'),
+            onPressed: () => context.push('/prescription?type=medicine'),
             icon: const Icon(Icons.arrow_forward_ios, color: AppColors.accent, size: 16),
           ),
         ],
@@ -798,8 +797,52 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       return;
     }
 
+    final currentUser = ref.read(currentUserProvider).value;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please login to place your order', style: GoogleFonts.sora()),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      context.push('/login');
+      return;
+    }
+
+    final isAddressIncomplete = currentUser.phone.isEmpty ||
+        currentUser.address.isEmpty ||
+        currentUser.pincode.isEmpty;
+
+    if (isAddressIncomplete) {
+      final shouldFillAddress = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Complete Your Profile', style: GoogleFonts.sora(fontWeight: FontWeight.bold)),
+          content: Text(
+            'Please fill in your phone number, address, and pincode to place an order.',
+            style: GoogleFonts.sora(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel', style: GoogleFonts.sora(color: AppColors.textSecondary)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text('Fill Address', style: GoogleFonts.sora(color: AppColors.primary)),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldFillAddress == true && mounted) {
+        context.go('/profile');
+      }
+      return;
+    }
+
     if (requiresPrescription) {
-      context.push('/prescription');
+      context.push('/prescription?type=medicine');
       return;
     }
 
@@ -849,13 +892,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       final shortOrderId = newOrderId.length > 6
           ? newOrderId.substring(newOrderId.length - 6).toUpperCase()
           : newOrderId.toUpperCase();
-
-      await ref.read(notificationProvider.notifier).addNotification(
-        title: 'Order Placed! 📦',
-        body: 'Your order #SA-$shortOrderId has been placed. We will confirm it soon.',
-        type: 'order_placed',
-        orderId: newOrderId,
-      );
 
       if (!mounted) {
         return;

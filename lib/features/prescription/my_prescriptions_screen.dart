@@ -74,7 +74,7 @@ class _MyPrescriptionsContentState extends ConsumerState<_MyPrescriptionsContent
         actions: [
           IconButton(
             icon: const Icon(Icons.add_a_photo),
-            onPressed: () => context.push('/prescription'),
+            onPressed: () => context.push('/prescription?type=medicine'),
           ),
         ],
       ),
@@ -108,7 +108,7 @@ class _MyPrescriptionsContentState extends ConsumerState<_MyPrescriptionsContent
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/prescription'),
+        onPressed: () => context.push('/prescription?type=medicine'),
         icon: const Icon(Icons.add_a_photo),
         label: const Text('Upload'),
         backgroundColor: AppColors.primary,
@@ -132,7 +132,7 @@ class _MyPrescriptionsContentState extends ConsumerState<_MyPrescriptionsContent
             title: 'No Prescriptions',
             subtitle: 'Upload your first prescription to get started.',
             buttonText: 'Upload Prescription',
-            onButtonPressed: () => context.push('/prescription'),
+            onButtonPressed: () => context.push('/prescription?type=medicine'),
           ),
         ),
       ),

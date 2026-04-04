@@ -252,6 +252,7 @@ class PrescriptionService {
     required String userName,
     required String imageUrl,
     String? orderId,
+    PrescriptionType prescriptionType = PrescriptionType.medicine,
   }) async {
     final doc = _db.collection('prescriptions').doc();
     final now = DateTime.now();
@@ -265,6 +266,7 @@ class PrescriptionService {
       'userName': sanitizedName,
       'imageUrl': imageUrl,
       'status': 'pending',
+      'prescriptionType': prescriptionType.name,
       'orderId': orderId,
       'notes': null,
       'createdAt': Timestamp.fromDate(now),
@@ -328,7 +330,7 @@ class PrescriptionService {
         .snapshots()
         .map((snap) => snap.docs
             .map((doc) => PrescriptionModel.fromFirestore(
-                doc.data() as Map<String, dynamic>,
+                doc.data(),
                 doc.id))
             .toList());
   }

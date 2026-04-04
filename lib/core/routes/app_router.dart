@@ -6,9 +6,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/widgets/main_shell.dart';
+import '../../features/admin/admin_lab_orders_screen.dart';
+import '../../features/admin/admin_lab_packages_screen.dart';
+import '../../features/admin/admin_lab_tests_screen.dart';
 import '../../features/admin/admin_order_detail_screen.dart';
-import '../../features/admin/admin_orders_screen.dart';
 import '../../features/admin/admin_prescriptions_screen.dart';
+import '../../features/admin/admin_shell.dart';
+import '../../features/lab/lab_order_detail_screen.dart';
+import '../../features/lab/lab_order_request_screen.dart';
+import '../../features/lab/lab_orders_screen.dart';
+import '../../features/lab/lab_package_detail_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/otp_screen.dart';
 import '../../features/cart/cart_screen.dart';
@@ -20,6 +27,7 @@ import '../../features/orders/order_confirmation_screen.dart';
 import '../../features/orders/orders_screen.dart';
 import '../../features/prescription/my_prescriptions_screen.dart';
 import '../../features/prescription/prescription_upload_screen.dart';
+import '../../models/prescription_model.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../providers/auth_provider.dart';
@@ -59,7 +67,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       final isProtected = location.startsWith('/order/') ||
           location.startsWith('/prescription') ||
-          location.startsWith('/admin');
+          location.startsWith('/admin') ||
+          location.startsWith('/lab/orders') ||
+          location.startsWith('/lab-order/');
 
       if (user != null && isAuthRoute) return '/home';
 
@@ -180,7 +190,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ),
     GoRoute(
       path: '/prescription',
-      builder: (context, state) => const PrescriptionUploadScreen(),
+      builder: (context, state) {
+        final typeParam = state.uri.queryParameters['type'];
+        final prescriptionType = PrescriptionType.fromString(typeParam);
+        return PrescriptionUploadScreen(prescriptionType: prescriptionType);
+      },
     ),
     GoRoute(
       path: '/my-prescriptions',
@@ -213,14 +227,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ),
     GoRoute(
       path: '/admin',
-      builder: (context, state) => const AdminOrdersScreen(),
+      builder: (context, state) => const AdminShellScreen(),
     ),
     GoRoute(
       path: '/admin/order/:id',
       builder: (context, state) {
         final orderId = state.pathParameters['id'];
         if (orderId == null || orderId.isEmpty) {
-          return const AdminOrdersScreen();
+          return const AdminShellScreen();
         }
         return AdminOrderDetailScreen(orderId: orderId);
       },
@@ -228,6 +242,60 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     GoRoute(
       path: '/admin/prescriptions',
       builder: (context, state) => const AdminPrescriptionsScreen(),
+    ),
+    // Lab Test routes — fix existing bug + new screens
+    GoRoute(
+      path: '/lab-order/:id',
+      builder: (context, state) {
+        final orderId = state.pathParameters['id'];
+        if (orderId == null || orderId.isEmpty) return const HomeScreen();
+        return LabOrderDetailScreen(orderId: orderId);
+      },
+    ),
+    GoRoute(
+      path: '/lab/package/:id',
+      builder: (context, state) {
+        final packageId = state.pathParameters['id'];
+        if (packageId == null || packageId.isEmpty) return const HomeScreen();
+        return LabPackageDetailScreen(packageId: packageId);
+      },
+    ),
+    GoRoute(
+      path: '/lab/book',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return LabOrderRequestScreen(
+          packageId: extra?['packageId'] as String?,
+          preselectedTestIds:
+              (extra?['testIds'] as List?)?.map((e) => e.toString()).toList() ?? [],
+          packageName: extra?['packageName'] as String?,
+          packagePrice: (extra?['packagePrice'] as num?)?.toDouble(),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/lab/orders',
+      builder: (context, state) => const LabOrdersScreen(),
+    ),
+    GoRoute(
+      path: '/admin/lab-orders',
+      builder: (context, state) => const AdminLabOrdersScreen(),
+    ),
+    GoRoute(
+      path: '/admin/lab-order/:id',
+      builder: (context, state) {
+        final orderId = state.pathParameters['id'];
+        if (orderId == null || orderId.isEmpty) return const AdminLabOrdersScreen();
+        return LabOrderDetailScreen(orderId: orderId);
+      },
+    ),
+    GoRoute(
+      path: '/admin/lab-packages',
+      builder: (context, state) => const AdminLabPackagesScreen(),
+    ),
+    GoRoute(
+      path: '/admin/lab-tests',
+      builder: (context, state) => const AdminLabTestsScreen(),
     ),
     ],
   );

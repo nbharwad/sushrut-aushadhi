@@ -1,5 +1,4 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,9 +24,12 @@ class _AdminPrescriptionsScreenState
     extends ConsumerState<AdminPrescriptionsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  PrescriptionType _selectedType = PrescriptionType.medicine;
   int _pendingCount = 0;
   int _approvedCount = 0;
   int _rejectedCount = 0;
+  int _medicinePendingCount = 0;
+  int _labPendingCount = 0;
 
   @override
   void initState() {
@@ -94,6 +96,7 @@ class _AdminPrescriptionsScreenState
       body: Column(
         children: [
           _buildCustomAppBar(),
+          _buildTypeToggle(),
           _buildStatsRow(),
           _buildTabBar(),
           Expanded(
@@ -157,6 +160,95 @@ class _AdminPrescriptionsScreenState
             onPressed: () => setState(() {}),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTypeToggle() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: SegmentedButton<PrescriptionType>(
+        segments: [
+          ButtonSegment<PrescriptionType>(
+            value: PrescriptionType.medicine,
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Medicine Rx'),
+                if (_medicinePendingCount > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$_medicinePendingCount',
+                      style: GoogleFonts.sora(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            icon: const Icon(Icons.medication_outlined),
+          ),
+          ButtonSegment<PrescriptionType>(
+            value: PrescriptionType.lab,
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Lab Rx'),
+                if (_labPendingCount > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$_labPendingCount',
+                      style: GoogleFonts.sora(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            icon: const Icon(Icons.science_outlined),
+          ),
+        ],
+        selected: {_selectedType},
+        onSelectionChanged: (newSelection) {
+          setState(() {
+            _selectedType = newSelection.first;
+            _tabController.index = 0;
+          });
+        },
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith<Color?>(
+            (states) => states.contains(WidgetState.selected)
+                ? AppColors.primary.withOpacity(0.12)
+                : null,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith<Color?>(
+            (states) => states.contains(WidgetState.selected)
+                ? AppColors.primary
+                : AppColors.textSecondary,
+          ),
+          side: WidgetStateProperty.all(
+            const BorderSide(color: Color(0xFFDDDDDD)),
+          ),
+        ),
       ),
     );
   }
@@ -258,14 +350,8 @@ class _AdminPrescriptionsScreenState
   }
 
   Widget _buildPrescriptionList(PrescriptionStatus? status) {
-    final prescriptionService = PrescriptionService();
-    final Stream<List<PrescriptionModel>> stream;
-
-    if (status == null) {
-      stream = prescriptionService.getAllPrescriptions();
-    } else {
-      stream = prescriptionService.getPrescriptionsByStatus(status.name);
-    }
+    // Always stream all prescriptions and filter client-side by type
+    final stream = PrescriptionService().getAllPrescriptions();
 
     return RefreshIndicator(
       color: Colors.white,
@@ -282,8 +368,14 @@ class _AdminPrescriptionsScreenState
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          final prescriptions = snapshot.data ?? [];
-          _updateStats(prescriptions);
+          final all = snapshot.data ?? [];
+          _updateStats(all);
+
+          // Filter by selected type first, then by status tab
+          final byType = all.where((p) => p.prescriptionType == _selectedType).toList();
+          final prescriptions = status == null
+              ? byType
+              : byType.where((p) => p.status == status).toList();
 
           if (prescriptions.isEmpty) {
             return _buildEmptyState(status);
@@ -305,22 +397,36 @@ class _AdminPrescriptionsScreenState
     );
   }
 
-  void _updateStats(List<PrescriptionModel> prescriptions) {
+  void _updateStats(List<PrescriptionModel> all) {
     int pending = 0;
     int approved = 0;
     int rejected = 0;
+    int medicinePending = 0;
+    int labPending = 0;
 
-    for (final prescription in prescriptions) {
-      switch (prescription.status) {
-        case PrescriptionStatus.pending:
-          pending++;
-          break;
-        case PrescriptionStatus.approved:
-          approved++;
-          break;
-        case PrescriptionStatus.rejected:
-          rejected++;
-          break;
+    for (final prescription in all) {
+      // Per-type pending counts (for segment badges)
+      if (prescription.status == PrescriptionStatus.pending) {
+        if (prescription.prescriptionType == PrescriptionType.medicine) {
+          medicinePending++;
+        } else {
+          labPending++;
+        }
+      }
+
+      // Status counts for the currently selected type
+      if (prescription.prescriptionType == _selectedType) {
+        switch (prescription.status) {
+          case PrescriptionStatus.pending:
+            pending++;
+            break;
+          case PrescriptionStatus.approved:
+            approved++;
+            break;
+          case PrescriptionStatus.rejected:
+            rejected++;
+            break;
+        }
       }
     }
 
@@ -330,6 +436,8 @@ class _AdminPrescriptionsScreenState
           _pendingCount = pending;
           _approvedCount = approved;
           _rejectedCount = rejected;
+          _medicinePendingCount = medicinePending;
+          _labPendingCount = labPending;
         });
       }
     });

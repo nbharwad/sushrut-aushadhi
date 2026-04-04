@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
 import '../../services/remote_config_service.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/widgets/empty_state_widget.dart';
@@ -156,9 +155,10 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
           children: [
             _buildCustomAppBar(),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: _buildStatsGrid(stats),
             ),
+            _buildPrescriptionsChip(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _buildSearchAndSort(),
@@ -190,12 +190,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
 
   Widget _buildCustomAppBar() {
     return Container(
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top > 0 ? 8 : 16,
-        left: 16,
-        right: 16,
-        bottom: 12,
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF0F6E56), Color(0xFF1D9E75)],
@@ -205,37 +200,19 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
       ),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () => context.go('/profile'),
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-          ),
-          const SizedBox(width: 4),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Admin Orders',
-                  style: GoogleFonts.sora(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Sushrut Aushadhi store operations',
-                  style: GoogleFonts.sora(
-                    color: Colors.white.withOpacity(0.75),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+            child: Text(
+              'Medicine Orders',
+              style: GoogleFonts.sora(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.14),
+              color: Colors.white.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
@@ -244,6 +221,38 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPrescriptionsChip() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: InkWell(
+          onTap: () => context.push('/admin/prescriptions'),
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE65100).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE65100).withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.description_outlined, size: 16, color: Color(0xFFE65100)),
+                const SizedBox(width: 6),
+                Text(
+                  'Prescriptions',
+                  style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFFE65100)),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

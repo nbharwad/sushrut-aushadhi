@@ -8,14 +8,20 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/widgets/login_prompt_widget.dart';
+import '../../models/prescription_model.dart';
 import '../../services/connectivity_service.dart';
 import '../../services/prescription_service.dart';
-import '../../providers/notification_provider.dart';
 import '../../core/constants/app_colors.dart';
 
 class PrescriptionUploadScreen
     extends ConsumerStatefulWidget {
-  const PrescriptionUploadScreen({super.key});
+  final PrescriptionType prescriptionType;
+
+  const PrescriptionUploadScreen({
+    super.key,
+    this.prescriptionType = PrescriptionType.medicine,
+  });
+
   ConsumerState<PrescriptionUploadScreen> createState() =>
       _PrescriptionUploadScreenState();
 }
@@ -316,17 +322,8 @@ class _PrescriptionUploadScreenState
         userPhone: userPhone,
         userName: userName,
         imageUrl: url,
+        prescriptionType: widget.prescriptionType,
       );
-
-      // Add notification
-      await ref
-          .read(notificationProvider.notifier)
-          .addNotification(
-            title: 'Prescription Uploaded',
-            body: 'Your prescription is under '
-                'review by our pharmacist.',
-            type: 'prescription',
-          );
 
       if (!mounted) return;
       setState(() => _isUploading = false);

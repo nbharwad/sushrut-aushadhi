@@ -1,5 +1,28 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+enum PrescriptionType {
+  medicine,
+  lab;
+
+  String get displayName {
+    switch (this) {
+      case PrescriptionType.medicine:
+        return 'Medicine';
+      case PrescriptionType.lab:
+        return 'Lab';
+    }
+  }
+
+  static PrescriptionType fromString(String? value) {
+    switch (value) {
+      case 'lab':
+        return PrescriptionType.lab;
+      default:
+        return PrescriptionType.medicine;
+    }
+  }
+}
+
 enum PrescriptionStatus {
   pending,
   approved,
@@ -35,6 +58,7 @@ class PrescriptionModel {
   final String? userPhone;
   final String imageUrl;
   final PrescriptionStatus status;
+  final PrescriptionType prescriptionType;
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -48,6 +72,7 @@ class PrescriptionModel {
     this.userPhone,
     required this.imageUrl,
     this.status = PrescriptionStatus.pending,
+    this.prescriptionType = PrescriptionType.medicine,
     this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -63,6 +88,7 @@ class PrescriptionModel {
       userPhone: data['userPhone'],
       imageUrl: data['imageUrl'] ?? '',
       status: PrescriptionStatus.fromString(data['status']),
+      prescriptionType: PrescriptionType.fromString(data['prescriptionType']),
       notes: data['notes'],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -78,6 +104,7 @@ class PrescriptionModel {
       'userPhone': userPhone,
       'imageUrl': imageUrl,
       'status': status.name,
+      'prescriptionType': prescriptionType.name,
       'notes': notes,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -93,6 +120,7 @@ class PrescriptionModel {
     String? userPhone,
     String? imageUrl,
     PrescriptionStatus? status,
+    PrescriptionType? prescriptionType,
     String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -106,6 +134,7 @@ class PrescriptionModel {
       userPhone: userPhone ?? this.userPhone,
       imageUrl: imageUrl ?? this.imageUrl,
       status: status ?? this.status,
+      prescriptionType: prescriptionType ?? this.prescriptionType,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
