@@ -4,6 +4,7 @@ class AppNotification {
   final String body;
   final String type;
   final String? orderId;
+  final String? deviceId;
   final bool isRead;
   final DateTime createdAt;
 
@@ -13,6 +14,7 @@ class AppNotification {
     required this.body,
     required this.type,
     this.orderId,
+    this.deviceId,
     this.isRead = false,
     required this.createdAt,
   });
@@ -24,6 +26,7 @@ class AppNotification {
       body: body,
       type: type,
       orderId: orderId,
+      deviceId: deviceId,
       isRead: isRead ?? this.isRead,
       createdAt: createdAt,
     );
@@ -36,6 +39,7 @@ class AppNotification {
       'body': body,
       'type': type,
       'orderId': orderId,
+      'deviceId': deviceId,
       'isRead': isRead,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -43,13 +47,16 @@ class AppNotification {
 
   factory AppNotification.fromMap(Map<String, dynamic> map) {
     return AppNotification(
-      id: map['id'],
-      title: map['title'],
-      body: map['body'],
-      type: map['type'],
+      id: map['id'] ?? '',
+      title: map['title'] ?? '',
+      body: map['body'] ?? '',
+      type: map['type'] ?? '',
       orderId: map['orderId'],
+      deviceId: map['deviceId'],
       isRead: map['isRead'] ?? false,
-      createdAt: DateTime.parse(map['createdAt']),
+      createdAt: map['createdAt'] != null 
+          ? DateTime.parse(map['createdAt']) 
+          : DateTime.now(),
     );
   }
 }

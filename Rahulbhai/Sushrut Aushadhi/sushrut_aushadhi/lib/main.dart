@@ -19,12 +19,36 @@ import 'providers/notification_handler_provider.dart';
 import 'services/connectivity_service.dart';
 import 'services/medicine_cache_service.dart';
 import 'services/remote_config_service.dart';
+import 'core/utils/performance_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  final notification = message.notification;
+  final data = message.data;
+  
+  if (notification != null) {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final docRef = firestore.collection('notifications').doc();
+      
+      await docRef.set({
+        'userId': data['userId'] ?? '',
+        'title': notification.title ?? '',
+        'body': notification.body ?? '',
+        'type': data['type'] ?? 'general',
+        'orderId': data['orderId'],
+        'deviceId': data['deviceId'],
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error saving background notification to Firestore: $e');
+    }
+  }
 }
 
 Future<void> main() async {
@@ -38,13 +62,10 @@ Future<void> main() async {
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Initialize Crashlytics
   await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
   
-  // Pass all uncaught errors from the Flutter framework to Crashlytics
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
 
-  // Initialize App Check with Play Integrity
   await FirebaseAppCheck.instance.activate(
     androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
     appleProvider: AppleProvider.appAttest,
@@ -52,19 +73,19 @@ Future<void> main() async {
 
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
-    cacheSizeBytes: 100 * 1024 * 1024, // 100MB max
+    cacheSizeBytes: 100 * 1024 * 1024,
   );
 
   MedicineCacheService.loadCache();
   await ConnectivityService.initialize();
   await RemoteConfigService.initialize();
+  PerformanceService.init();
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Run the app with error zone handling
   runZonedGuarded<Future<void>>(() async {
     runApp(const ProviderScope(child: SushrutAushadhiApp()));
   }, (error, stack) {
