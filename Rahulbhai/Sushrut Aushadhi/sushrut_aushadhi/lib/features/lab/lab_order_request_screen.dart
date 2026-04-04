@@ -105,6 +105,26 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
       final user = ref.read(currentUserProvider).valueOrNull;
       if (user == null) throw Exception('User not found');
 
+      // Guard: name and phone must be set or lab_service will reject the order
+      if (user.name.trim().isEmpty || user.phone.trim().isEmpty) {
+        setState(() => _isSubmitting = false);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Please complete your profile (name & phone) before booking.',
+              style: GoogleFonts.sora(),
+            ),
+            action: SnackBarAction(
+              label: 'Edit Profile',
+              onPressed: () => context.push('/profile'),
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        return;
+      }
+
       String? notesText = _notesController.text.trim().isNotEmpty
           ? _notesController.text.trim()
           : null;
@@ -152,8 +172,16 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
       context.pushReplacement('/lab-order/$orderId');
     } catch (e) {
       if (!mounted) return;
+      final raw = e.toString();
+      final message = raw.contains('Missing required user')
+          ? 'Please complete your profile (name & phone) before booking.'
+          : raw.contains('Invalid test count')
+              ? 'Please select at least one test.'
+              : raw.contains('Invalid total amount')
+                  ? 'Total amount is invalid. Please try again.'
+                  : 'Failed to book lab test. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e', style: GoogleFonts.sora())),
+        SnackBar(content: Text(message, style: GoogleFonts.sora())),
       );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

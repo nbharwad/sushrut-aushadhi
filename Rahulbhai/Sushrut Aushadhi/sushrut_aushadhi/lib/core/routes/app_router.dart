@@ -204,7 +204,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ),
     GoRoute(
       path: '/my-prescriptions',
-      builder: (context, state) => const MyPrescriptionsScreen(),
+      builder: (context, state) {
+        final typeParam = state.uri.queryParameters['type'];
+        return MyPrescriptionsScreen(typeFilter: typeParam);
+      },
     ),
     GoRoute(
       path: '/order/:id',

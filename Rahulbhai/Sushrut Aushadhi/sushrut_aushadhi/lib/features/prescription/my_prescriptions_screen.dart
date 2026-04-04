@@ -14,7 +14,10 @@ import '../../providers/auth_provider.dart';
 import '../../services/prescription_service.dart';
 
 class MyPrescriptionsScreen extends ConsumerStatefulWidget {
-  const MyPrescriptionsScreen({super.key});
+  /// If non-null, only prescriptions of this type are shown ('lab' or 'medicine').
+  final String? typeFilter;
+
+  const MyPrescriptionsScreen({super.key, this.typeFilter});
 
   @override
   ConsumerState<MyPrescriptionsScreen> createState() => _MyPrescriptionsScreenState();
@@ -29,13 +32,20 @@ class _MyPrescriptionsScreenState extends ConsumerState<MyPrescriptionsScreen> {
       data: (user) {
         if (user == null) {
           return Scaffold(
-            appBar: AppBar(title: const Text('My Prescriptions')),
+            appBar: AppBar(
+              title: Text(widget.typeFilter == 'lab'
+                  ? 'Lab Prescriptions'
+                  : 'My Prescriptions'),
+            ),
             body: const LoginPromptWidget(
               message: 'Please login to view your prescriptions',
             ),
           );
         }
-        return _MyPrescriptionsContent(userId: user.uid);
+        return _MyPrescriptionsContent(
+          userId: user.uid,
+          typeFilter: widget.typeFilter,
+        );
       },
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -50,8 +60,9 @@ class _MyPrescriptionsScreenState extends ConsumerState<MyPrescriptionsScreen> {
 
 class _MyPrescriptionsContent extends ConsumerStatefulWidget {
   final String userId;
+  final String? typeFilter;
 
-  const _MyPrescriptionsContent({required this.userId});
+  const _MyPrescriptionsContent({required this.userId, this.typeFilter});
 
   @override
   ConsumerState<_MyPrescriptionsContent> createState() => _MyPrescriptionsContentState();
@@ -65,16 +76,20 @@ class _MyPrescriptionsContentState extends ConsumerState<_MyPrescriptionsContent
 
   @override
   Widget build(BuildContext context) {
+    final isLabFilter = widget.typeFilter == 'lab';
+    final uploadRoute = isLabFilter
+        ? '/prescription?type=lab'
+        : '/prescription?type=medicine';
     final prescriptionService = PrescriptionService();
     final prescriptionsStream = prescriptionService.getUserPrescriptions(widget.userId);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Prescriptions'),
+        title: Text(isLabFilter ? 'Lab Prescriptions' : 'My Prescriptions'),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_a_photo),
-            onPressed: () => context.push('/prescription'),
+            onPressed: () => context.push(uploadRoute),
           ),
         ],
       ),
@@ -92,9 +107,16 @@ class _MyPrescriptionsContentState extends ConsumerState<_MyPrescriptionsContent
             if (snapshot.hasError) {
               return Center(child: Text('Error: ${snapshot.error}'));
             }
-            final prescriptions = snapshot.data ?? [];
+            final allPrescriptions = snapshot.data ?? [];
+            final prescriptions = isLabFilter
+                ? allPrescriptions
+                    .where((p) => p.prescriptionType == PrescriptionType.lab)
+                    .toList()
+                : allPrescriptions
+                    .where((p) => p.prescriptionType == PrescriptionType.medicine)
+                    .toList();
             if (prescriptions.isEmpty) {
-              return _buildEmptyState(context);
+              return _buildEmptyState(context, isLabFilter, uploadRoute);
             }
             return ListView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -108,16 +130,16 @@ class _MyPrescriptionsContentState extends ConsumerState<_MyPrescriptionsContent
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/prescription'),
+        onPressed: () => context.push(uploadRoute),
         icon: const Icon(Icons.add_a_photo),
-        label: const Text('Upload'),
-        backgroundColor: AppColors.primary,
+        label: Text(isLabFilter ? 'Upload Lab Rx' : 'Upload'),
+        backgroundColor: isLabFilter ? const Color(0xFF0277BD) : AppColors.primary,
         foregroundColor: Colors.white,
       ),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, bool isLabFilter, String uploadRoute) {
     return RefreshIndicator(
       color: const Color(0xFF0F6E56),
       backgroundColor: Colors.white,
@@ -128,11 +150,13 @@ class _MyPrescriptionsContentState extends ConsumerState<_MyPrescriptionsContent
         child: SizedBox(
           height: MediaQuery.of(context).size.height * 0.6,
           child: EmptyStateWidget(
-            emoji: '💊',
-            title: 'No Prescriptions',
-            subtitle: 'Upload your first prescription to get started.',
-            buttonText: 'Upload Prescription',
-            onButtonPressed: () => context.push('/prescription'),
+            emoji: isLabFilter ? '🧪' : '💊',
+            title: isLabFilter ? 'No Lab Prescriptions' : 'No Prescriptions',
+            subtitle: isLabFilter
+                ? 'Upload a lab prescription to get started.'
+                : 'Upload your first prescription to get started.',
+            buttonText: isLabFilter ? 'Upload Lab Prescription' : 'Upload Prescription',
+            onButtonPressed: () => context.push(uploadRoute),
           ),
         ),
       ),

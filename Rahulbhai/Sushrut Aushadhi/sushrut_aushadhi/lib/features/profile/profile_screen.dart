@@ -12,10 +12,12 @@ import '../../core/utils/responsive.dart';
 import '../../services/remote_config_service.dart';
 import '../../core/widgets/menu_item_tile.dart';
 import '../../core/di/service_providers.dart';
-import '../../models/user_model.dart';
+import '../../models/lab_order_model.dart';
 import '../../models/order_model.dart';
+import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/lab_providers.dart';
 import '../../providers/orders_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -170,6 +172,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       o.status == OrderStatus.outForDelivery
     ).length;
     final totalOrders = allOrders.length;
+    final allLabOrders = ref.watch(userLabOrdersProvider).valueOrNull ?? [];
+    final activeLabCount = allLabOrders.where((o) =>
+      o.status == LabOrderStatus.pending ||
+      o.status == LabOrderStatus.sampleCollected ||
+      o.status == LabOrderStatus.processing
+    ).length;
     
     return Column(
       children: [
@@ -227,6 +235,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     onTap: () => context.go('/orders'),
                   ),
                   MenuItemTile(
+                    icon: const Icon(Icons.biotech, color: AppColors.labPrimary, size: 18),
+                    iconBg: AppColors.labPrimaryLight,
+                    title: 'My Lab Tests',
+                    subtitle: 'View & track lab bookings',
+                    trailing: activeLabCount > 0
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.labPrimary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '$activeLabCount active',
+                              style: GoogleFonts.sora(
+                                color: AppColors.labPrimary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          )
+                        : null,
+                    onTap: () => context.push('/lab/orders'),
+                  ),
+                  MenuItemTile(
                     icon: const Icon(Icons.location_on_outlined, color: Color(0xFF1E88E5), size: 18),
                     iconBg: const Color(0xFFE3F2FD),
                     title: 'Saved Addresses',
@@ -237,8 +269,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     icon: const Icon(Icons.description_outlined, color: Color(0xFF8E24AA), size: 18),
                     iconBg: const Color(0xFFF3E5F5),
                     title: 'My Prescriptions',
-                    subtitle: 'Uploaded prescriptions',
+                    subtitle: 'Medicine prescriptions',
                     onTap: () => context.push('/my-prescriptions'),
+                  ),
+                  MenuItemTile(
+                    icon: const Icon(Icons.assignment_outlined, color: AppColors.labPrimary, size: 18),
+                    iconBg: AppColors.labPrimaryLight,
+                    title: 'Lab Prescriptions',
+                    subtitle: 'Uploaded lab prescriptions',
+                    onTap: () => context.push('/my-prescriptions?type=lab'),
                   ),
                 ]),
                 const SizedBox(height: 8),
