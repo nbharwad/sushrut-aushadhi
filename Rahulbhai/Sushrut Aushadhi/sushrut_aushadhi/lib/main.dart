@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/constants/app_strings.dart';
 import 'core/constants/app_theme.dart';
 import 'core/routes/app_router.dart' show goRouterProvider;
+import 'core/utils/app_logger.dart';
 import 'core/widgets/connectivity_wrapper.dart';
 import 'firebase_options.dart';
 import 'services/connectivity_service.dart';
@@ -30,6 +31,8 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  AppLogger.init();
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 

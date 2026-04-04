@@ -139,7 +139,7 @@ class NotificationPanel extends ConsumerWidget {
         notifier.markAsRead(n.id);
         Navigator.pop(context);
         if (n.orderId != null) {
-          context.push('/orders');
+          context.go('/orders');
         }
       },
       child: Container(
