@@ -27,7 +27,7 @@ service cloud.firestore {
     }
 
     function isValidUserData() {
-      let allowedKeys = ['name', 'phone', 'address', 'pincode', 'fcmToken', 'createdAt', 'role', 'updatedAt', 'lastLoginAt', 'isActive'];
+      let allowedKeys = ['name', 'phone', 'email', 'address', 'pincode', 'deliveryAddress', 'fcmToken', 'fcmTokens', 'createdAt', 'role', 'updatedAt', 'lastLoginAt', 'isActive'];
       return request.resource.data.keys().hasOnly(allowedKeys);
     }
 

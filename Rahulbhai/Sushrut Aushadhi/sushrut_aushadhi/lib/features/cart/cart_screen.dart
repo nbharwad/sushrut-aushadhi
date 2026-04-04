@@ -13,7 +13,6 @@ import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/notification_provider.dart';
-import '../../providers/prescription_provider.dart';
 import '../../services/connectivity_service.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
@@ -799,12 +798,53 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       return;
     }
 
-    if (requiresPrescription) {
-      final hasUploadedPrescription = ref.read(hasUploadedPrescriptionProvider);
-      if (!hasUploadedPrescription) {
-        context.push('/prescription');
-        return;
+    final currentUser = ref.read(currentUserProvider).value;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please login to place your order', style: GoogleFonts.sora()),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      context.push('/login');
+      return;
+    }
+
+    final isAddressIncomplete = currentUser.phone.isEmpty ||
+        currentUser.address.isEmpty ||
+        currentUser.pincode.isEmpty;
+
+    if (isAddressIncomplete) {
+      final shouldFillAddress = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Complete Your Profile', style: GoogleFonts.sora(fontWeight: FontWeight.bold)),
+          content: Text(
+            'Please fill in your phone number, address, and pincode to place an order.',
+            style: GoogleFonts.sora(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel', style: GoogleFonts.sora(color: AppColors.textSecondary)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text('Fill Address', style: GoogleFonts.sora(color: AppColors.primary)),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldFillAddress == true && mounted) {
+        context.go('/profile');
       }
+      return;
+    }
+
+    if (requiresPrescription) {
+      context.push('/prescription');
+      return;
     }
 
     await _createOrder();

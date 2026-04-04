@@ -236,7 +236,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     iconBg: const Color(0xFFF3E5F5),
                     title: 'My Prescriptions',
                     subtitle: 'Uploaded prescriptions',
-                    onTap: () => context.push('/prescription'),
+                    onTap: () => context.push('/my-prescriptions'),
                   ),
                 ]),
                 const SizedBox(height: 8),
@@ -824,17 +824,21 @@ class AddressBottomSheet extends ConsumerStatefulWidget {
 
 class _AddressBottomSheetState extends ConsumerState<AddressBottomSheet> {
   final _formKey = GlobalKey<FormState>();
+  late TextEditingController _phoneController;
   late TextEditingController _addressController;
   late TextEditingController _pincodeController;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
+    _phoneController = TextEditingController();
     _addressController = TextEditingController();
     _pincodeController = TextEditingController();
 
     ref.read(currentUserProvider).whenData((user) {
       if (user != null) {
+        _phoneController.text = user.phone;
         _addressController.text = user.address;
         _pincodeController.text = user.pincode;
       }
@@ -843,9 +847,52 @@ class _AddressBottomSheetState extends ConsumerState<AddressBottomSheet> {
 
   @override
   void dispose() {
+    _phoneController.dispose();
     _addressController.dispose();
     _pincodeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveAddress() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      final user = ref.read(currentUserProvider).value;
+      if (user == null) {
+        throw Exception('User not found');
+      }
+
+      await ref.read(firestoreServiceProvider).updateUser(user.uid, {
+        'phone': _phoneController.text.trim(),
+        'address': _addressController.text.trim(),
+        'pincode': _pincodeController.text.trim(),
+      });
+
+      ref.invalidate(currentUserProvider);
+
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Address saved successfully', style: GoogleFonts.sora())),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e', style: GoogleFonts.sora())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -878,6 +925,16 @@ class _AddressBottomSheetState extends ConsumerState<AddressBottomSheet> {
               Text('Saved Addresses', style: GoogleFonts.sora(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
               TextFormField(
+                controller: _phoneController,
+                decoration: InputDecoration(
+                  labelText: 'Phone Number',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                keyboardType: TextInputType.phone,
+                style: GoogleFonts.sora(),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
                 controller: _addressController,
                 decoration: InputDecoration(
                   labelText: 'Address',
@@ -900,17 +957,26 @@ class _AddressBottomSheetState extends ConsumerState<AddressBottomSheet> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: _isSaving ? null : _saveAddress,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text(
-                    'Save Address',
-                    style: GoogleFonts.sora(fontWeight: FontWeight.w600, fontSize: 16),
-                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          'Save Address',
+                          style: GoogleFonts.sora(fontWeight: FontWeight.w600, fontSize: 16),
+                        ),
                 ),
               ),
             ],
