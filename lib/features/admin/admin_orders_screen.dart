@@ -47,7 +47,8 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = ref.watch(isAdminProvider);
+    final isAdminAsync = ref.watch(isAdminFromClaimsProvider);
+    final isAdmin = isAdminAsync.valueOrNull ?? false;
     final ordersAsync = ref.watch(allOrdersProvider);
     final stats = ordersAsync.maybeWhen(
       data: _AdminOrderStats.fromOrders,

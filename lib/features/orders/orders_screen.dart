@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/widgets/empty_state_widget.dart';
@@ -12,6 +14,7 @@ import '../../models/order_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../services/connectivity_service.dart';
+import '../../services/remote_config_service.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
@@ -235,6 +238,58 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
     );
   }
 
+  Future<void> _cancelOrder(OrderModel order) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Cancel Order', style: GoogleFonts.sora(fontWeight: FontWeight.bold)),
+        content: Text(
+          'Are you sure you want to cancel this order?',
+          style: GoogleFonts.sora(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('No', style: GoogleFonts.sora(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Yes, Cancel', style: GoogleFonts.sora(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('orders').doc(order.orderId).update({
+        'status': 'cancelled',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      ref.invalidate(ordersProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Order cancelled successfully'),
+          backgroundColor: Color(0xFF0F6E56),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _callStore() async {
+    final uri = Uri.parse('tel:${RemoteConfigService.storePhone}');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ordersAsync = ref.watch(ordersProvider);
@@ -430,20 +485,24 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
     final isActive =
         order.status != OrderStatus.delivered && order.status != OrderStatus.cancelled;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        children: [
-          _buildCardHeader(order),
-          if (isActive) _buildStatusTimeline(order.status),
-          _buildItemsPreview(order),
-          _buildCardFooter(order),
-        ],
+    return InkWell(
+      onTap: () => context.push('/order/${order.orderId}'),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Column(
+          children: [
+            _buildCardHeader(order),
+            if (isActive) _buildStatusTimeline(order.status),
+            _buildItemsPreview(order),
+            _buildCardFooter(order),
+          ],
+        ),
       ),
     );
   }
@@ -739,7 +798,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
                 )
               : isActive && !isPending
                   ? OutlinedButton(
-                      onPressed: () {},
+                      onPressed: _callStore,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primary,
                         side: const BorderSide(color: AppColors.primary),
@@ -750,7 +809,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
                     )
                   : isPending
                       ? OutlinedButton(
-                          onPressed: () {},
+                          onPressed: () => _cancelOrder(order),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.error,
                             side: const BorderSide(color: AppColors.error),

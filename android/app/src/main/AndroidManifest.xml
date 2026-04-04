@@ -18,6 +18,10 @@
     <!-- Notifications Android 13+ -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+    <!-- Exact alarm Android 13+ -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"
+        android:minSdkVersion="33"/>
+
     <!-- Phone state for OTP auto-read -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" android:maxSdkVersion="22"/>
 
@@ -25,7 +29,7 @@
         android:label="Sushrut Aushadhi"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:requestLegacyExternalStorage="true"
+        android:requestLegacyExternalStorage="false"
         android:usesCleartextTraffic="false"
         android:enableOnBackInvokedCallback="true"
         android:hardwareAccelerated="true"

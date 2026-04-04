@@ -84,7 +84,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     }
 
     if (!mounted) return;
-    context.go(user != null ? '/home' : '/login');
+    context.go('/home');
   }
 
   void _showMaintenanceScreen() {

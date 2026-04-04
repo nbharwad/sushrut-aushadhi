@@ -73,9 +73,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
 
   void _handleSuccess() {
     setState(() => _isLoading = false);
-    final fromCart = GoRouterState.of(context).uri.toString().contains('cart');
-    if (fromCart) {
-      context.go('/cart');
+    if (context.canPop()) {
+      context.pop();
     } else {
       context.go('/home');
     }
@@ -104,7 +103,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
       onVerificationCompleted: (_) {
         if (!mounted) return;
         setState(() => _isLoading = false);
-        context.go('/home');
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
       },
       onTimeout: (_) {
         if (!mounted) return;
@@ -250,6 +253,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     final iconSize = context.isCompactWidth ? 48.0 : 60.0;
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: [
+          TextButton(
+            onPressed: () => context.go('/home'),
+            child: Text(
+              'Browse as Guest',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(

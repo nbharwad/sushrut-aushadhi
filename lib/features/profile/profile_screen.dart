@@ -13,8 +13,10 @@ import '../../services/remote_config_service.dart';
 import '../../core/widgets/menu_item_tile.dart';
 import '../../core/di/service_providers.dart';
 import '../../models/user_model.dart';
+import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/orders_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -156,11 +158,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildUserView(UserModel user, int cartItemCount) {
-    final isAdmin = ref.watch(isAdminProvider);
+    final isAdminAsync = ref.watch(isAdminFromClaimsProvider);
+    final isAdmin = isAdminAsync.valueOrNull ?? false;
+    final allOrders = ref.watch(ordersProvider).valueOrNull ?? [];
+    final activeCount = allOrders.where((o) =>
+      o.status == OrderStatus.pending ||
+      o.status == OrderStatus.confirmed ||
+      o.status == OrderStatus.preparing ||
+      o.status == OrderStatus.outForDelivery
+    ).length;
+    final totalOrders = allOrders.length;
     
     return Column(
       children: [
-        _buildHeroHeader(user),
+        _buildHeroHeader(user, totalOrders: totalOrders),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.only(bottom: 24),
@@ -203,7 +214,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '0 active',
+                        '$activeCount active',
                         style: GoogleFonts.sora(
                           color: AppColors.error,
                           fontSize: 11,
@@ -330,7 +341,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildHeroHeader(UserModel? user) {
+  Widget _buildHeroHeader(UserModel? user, {int totalOrders = 0}) {
     final isCompact = context.isCompactWidth;
     final name = user?.name ?? 'Guest';
     final initials =
@@ -464,7 +475,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         spacing: 12,
                         runSpacing: 12,
                         children: [
-                          _buildStatCard('Total Orders', '0', Icons.shopping_bag, itemWidth),
+                          _buildStatCard('Total Orders', '$totalOrders', Icons.shopping_bag, itemWidth),
                           _buildStatCard('Total Saved', '\u20B90', Icons.savings, itemWidth),
                           _buildStatCard('Rating', '4.8', Icons.star, itemWidth),
                         ],

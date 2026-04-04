@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/widgets/empty_state_widget.dart';
+import '../../core/widgets/login_prompt_widget.dart';
 import '../../core/di/service_providers.dart';
 import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
@@ -63,15 +64,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         ),
         centerTitle: true,
       ),
-      body: cartItems.isEmpty
-          ? EmptyStateWidget(
-              emoji: '🛒',
-              title: 'Your Cart is Empty',
-              subtitle: 'Add medicines from our store to get started.',
-              buttonText: 'Browse Medicines',
-              onButtonPressed: () => context.go('/home'),
+      body: FirebaseAuth.instance.currentUser == null
+          ? const LoginPromptWidget(
+              message: 'Login to view your cart and place orders.',
             )
-          : Column(
+          : cartItems.isEmpty
+              ? EmptyStateWidget(
+                  emoji: '🛒',
+                  title: 'Your Cart is Empty',
+                  subtitle: 'Add medicines from our store to get started.',
+                  buttonText: 'Browse Medicines',
+                  onButtonPressed: () => context.go('/home'),
+                )
+              : Column(
               children: [
                 Expanded(
                   child: SingleChildScrollView(

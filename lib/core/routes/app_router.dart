@@ -39,30 +39,39 @@ class GoRouterRefreshStream extends ChangeNotifier {
   }
 }
 
+final isVerifyingProvider = StateProvider<bool>((ref) => false);
+
 final goRouterProvider = Provider<GoRouter>((ref) {
-  final isAdmin = ref.watch(isAdminProvider);
+  final authReady = ref.watch(authReadyProvider);
+  final isVerifying = ref.watch(isVerifyingProvider);
   final authListener = GoRouterRefreshStream(FirebaseAuth.instance.authStateChanges());
 
   return GoRouter(
     initialLocation: '/splash',
     refreshListenable: authListener,
     redirect: (context, state) {
+      if (isVerifying) return null;
+
       final user = FirebaseAuth.instance.currentUser;
       final location = state.matchedLocation;
 
       final isAuthRoute = location == '/login' || location == '/otp';
 
-      final isProtected = location.startsWith('/order') ||
+      final isProtected = location.startsWith('/order/') ||
           location.startsWith('/prescription') ||
-          location.startsWith('/admin') ||
-          location == '/cart' ||
-          location == '/profile';
+          location.startsWith('/admin');
 
       if (user != null && isAuthRoute) return '/home';
 
       if (user == null && isProtected) return '/login';
 
-      if (location.startsWith('/admin') && !isAdmin) return '/home';
+      if (location.startsWith('/admin') && !authReady) return '/home';
+
+      if (location.startsWith('/admin')) {
+        final isAdminAsync = ref.read(isAdminFromClaimsProvider);
+        final isAdmin = isAdminAsync.valueOrNull ?? false;
+        if (!isAdmin) return '/home';
+      }
 
       return null;
     },

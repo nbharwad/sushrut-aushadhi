@@ -48,7 +48,8 @@ class _AdminPrescriptionsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = ref.watch(isAdminProvider);
+    final isAdminAsync = ref.watch(isAdminFromClaimsProvider);
+    final isAdmin = isAdminAsync.valueOrNull ?? false;
 
     if (!isAdmin) {
       return Scaffold(
