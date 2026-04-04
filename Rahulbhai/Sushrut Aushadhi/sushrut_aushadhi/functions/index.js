@@ -613,7 +613,7 @@ exports.logAdminAction = onDocumentUpdated(
       const newStatus = newData.status;
       const isValidTransition = validateStatusTransition(currentStatus, newStatus);
       
-      if (!isValidTransition && currentStatus !== 'pending') {
+      if (!isValidTransition) {
         console.error(`Invalid status transition: ${currentStatus} -> ${newStatus}`);
         await event.data.ref.update({
           status: currentStatus,

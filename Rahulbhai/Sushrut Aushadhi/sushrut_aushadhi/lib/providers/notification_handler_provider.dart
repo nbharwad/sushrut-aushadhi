@@ -32,12 +32,15 @@ class NotificationHandlerNotifier extends StateNotifier<bool> {
       }
     });
 
+    await notificationService.subscribeToTopic('admin_orders');
+
     state = true;
   }
 
   void _handleForegroundMessage(RemoteMessage message) async {
     final notificationService = _ref.read(notificationServiceProvider);
     final data = notificationService.parseNotificationData(message);
+    final userId = data?['userId'] as String? ?? '';
     
     if (message.notification != null) {
       final orderId = notificationService.getOrderIdFromData(data);
@@ -48,7 +51,7 @@ class NotificationHandlerNotifier extends StateNotifier<bool> {
       }
 
       await notificationService.saveNotificationToFirestore(
-        userId: '',
+        userId: userId,
         title: message.notification!.title ?? '',
         body: message.notification!.body ?? '',
         type: type,

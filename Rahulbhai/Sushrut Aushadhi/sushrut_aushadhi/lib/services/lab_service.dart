@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
 import '../models/lab_order_model.dart';
+import '../models/lab_package_model.dart';
 import '../core/utils/app_logger.dart';
 import '../services/notification_service.dart';
 
@@ -267,25 +268,175 @@ class LabService {
   Future<String> uploadLabResult(String orderId, String filePath, String fileName) async {
     try {
       final storageRef = FirebaseStorage.instance.ref().child('lab_results').child(orderId).child(fileName);
-      
+
       final uploadTask = storageRef.putFile(
         File(filePath),
         SettableMetadata(contentType: 'application/pdf'),
       );
-      
+
       final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
-      
+
       await _db.collection('labOrders').doc(orderId).update({
         'labResultUrl': downloadUrl,
         'resultUploaded': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       AppLogger.info("Lab result uploaded for order: $orderId", tag: "LabOrder");
       return downloadUrl;
     } catch (e) {
       AppLogger.error("Error uploading lab result: $e", tag: "LabOrder");
+      rethrow;
+    }
+  }
+
+  // ── Lab Packages ──────────────────────────────────────────────────────────
+
+  Stream<List<LabPackageModel>> getLabPackages() {
+    return _db
+        .collection('lab_packages')
+        .where('active', isEqualTo: true)
+        .orderBy('sortOrder')
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => LabPackageModel.fromFirestore(d.data(), d.id))
+            .toList());
+  }
+
+  Stream<List<LabPackageModel>> getAllLabPackages() {
+    return _db
+        .collection('lab_packages')
+        .orderBy('sortOrder')
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => LabPackageModel.fromFirestore(d.data(), d.id))
+            .toList());
+  }
+
+  Stream<LabPackageModel?> getLabPackageStream(String packageId) {
+    return _db
+        .collection('lab_packages')
+        .doc(packageId)
+        .snapshots()
+        .map((doc) => doc.exists
+            ? LabPackageModel.fromFirestore(doc.data()!, doc.id)
+            : null);
+  }
+
+  Future<String> createLabPackage(LabPackageModel package) async {
+    if (package.name.isEmpty || package.name.length > 100) {
+      throw Exception('Package name must be between 1 and 100 characters');
+    }
+    if (package.price <= 0 || package.price > 99999) {
+      throw Exception('Package price must be between 1 and 99999');
+    }
+    if (package.testIds.isEmpty || package.testIds.length > 50) {
+      throw Exception('Package must include between 1 and 50 tests');
+    }
+
+    try {
+      final docRef = _db.collection('lab_packages').doc();
+      final now = DateTime.now();
+      final data = package.copyWith(
+        id: docRef.id,
+        createdAt: now,
+        updatedAt: now,
+        testCount: package.testIds.length,
+      ).toMap();
+      await docRef.set(data);
+      AppLogger.info('Lab package created: ${docRef.id}', tag: 'LabPackage');
+      return docRef.id;
+    } catch (e) {
+      AppLogger.error('Error creating lab package: $e', tag: 'LabPackage');
+      rethrow;
+    }
+  }
+
+  Future<void> updateLabPackage(String packageId, Map<String, dynamic> data) async {
+    try {
+      data['updatedAt'] = FieldValue.serverTimestamp();
+      if (data.containsKey('testIds') && data['testIds'] is List) {
+        data['testCount'] = (data['testIds'] as List).length;
+      }
+      await _db.collection('lab_packages').doc(packageId).update(data);
+      AppLogger.info('Lab package updated: $packageId', tag: 'LabPackage');
+    } catch (e) {
+      AppLogger.error('Error updating lab package: $e', tag: 'LabPackage');
+      rethrow;
+    }
+  }
+
+  Future<void> toggleLabPackageActive(String packageId, bool active) async {
+    try {
+      await _db.collection('lab_packages').doc(packageId).update({
+        'active': active,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      AppLogger.info('Lab package $packageId active=$active', tag: 'LabPackage');
+    } catch (e) {
+      AppLogger.error('Error toggling lab package: $e', tag: 'LabPackage');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteLabPackage(String packageId) async {
+    try {
+      await _db.collection('lab_packages').doc(packageId).delete();
+      AppLogger.info('Lab package deleted: $packageId', tag: 'LabPackage');
+    } catch (e) {
+      AppLogger.error('Error deleting lab package: $e', tag: 'LabPackage');
+      rethrow;
+    }
+  }
+
+  // ── Individual Lab Tests (admin management) ───────────────────────────────
+
+  Stream<List<LabTestModel>> getAllLabTestsStream() {
+    return _db
+        .collection('lab_tests')
+        .orderBy('name')
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => LabTestModel.fromFirestore(d.data(), d.id))
+            .toList());
+  }
+
+  Future<String> createLabTest(LabTestModel test) async {
+    if (test.name.isEmpty || test.name.length > 100) {
+      throw Exception('Test name must be between 1 and 100 characters');
+    }
+    if (test.price <= 0 || test.price > 99999) {
+      throw Exception('Test price must be between 1 and 99999');
+    }
+
+    try {
+      final docRef = _db.collection('lab_tests').doc();
+      await docRef.set(test.toMap());
+      AppLogger.info('Lab test created: ${docRef.id}', tag: 'LabTest');
+      return docRef.id;
+    } catch (e) {
+      AppLogger.error('Error creating lab test: $e', tag: 'LabTest');
+      rethrow;
+    }
+  }
+
+  Future<void> updateLabTest(String testId, Map<String, dynamic> data) async {
+    try {
+      await _db.collection('lab_tests').doc(testId).update(data);
+      AppLogger.info('Lab test updated: $testId', tag: 'LabTest');
+    } catch (e) {
+      AppLogger.error('Error updating lab test: $e', tag: 'LabTest');
+      rethrow;
+    }
+  }
+
+  Future<void> toggleLabTestActive(String testId, bool active) async {
+    try {
+      await _db.collection('lab_tests').doc(testId).update({'active': active});
+      AppLogger.info('Lab test $testId active=$active', tag: 'LabTest');
+    } catch (e) {
+      AppLogger.error('Error toggling lab test: $e', tag: 'LabTest');
       rethrow;
     }
   }

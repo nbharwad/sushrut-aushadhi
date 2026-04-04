@@ -65,6 +65,10 @@ class NotificationService {
     });
   }
 
+  Future<void> subscribeToTopic(String topic) async {
+    await _messaging.subscribeToTopic(topic);
+  }
+
   Future<void> _handleTokenRefresh(String newToken) async {
     if (_deviceId == null) return;
   }

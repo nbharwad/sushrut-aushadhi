@@ -27,30 +27,81 @@ class AdminOrdersScreen extends ConsumerStatefulWidget {
 class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _sortOrder = 'newest';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _onRefresh() async {
-    ref.read(paginatedOrdersProvider.notifier).refresh();
+    ref.invalidate(allOrdersProvider);
     await Future<void>.delayed(const Duration(milliseconds: 400));
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _searchQuery = query.toLowerCase();
+    });
+  }
+
+  void _onSortChanged(String sortOrder) {
+    setState(() {
+      _sortOrder = sortOrder;
+    });
+  }
+
+  void _jumpToTab(int tabIndex) {
+    if (tabIndex >= 0 && tabIndex < 6) {
+      _tabController.animateTo(tabIndex);
+    }
+  }
+
+  List<OrderModel> _filterAndSortOrders(List<OrderModel> orders) {
+    var filtered = orders.where((order) {
+      if (_searchQuery.isEmpty) return true;
+      return order.orderId.toLowerCase().contains(_searchQuery) ||
+          order.userName.toLowerCase().contains(_searchQuery) ||
+          order.userPhone.contains(_searchQuery);
+    }).toList();
+
+    switch (_sortOrder) {
+      case 'oldest':
+        filtered.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
+      case 'amount_high':
+        filtered.sort((a, b) => b.totalAmount.compareTo(a.totalAmount));
+        break;
+      case 'amount_low':
+        filtered.sort((a, b) => a.totalAmount.compareTo(b.totalAmount));
+        break;
+      case 'newest':
+      default:
+        filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+
+    return filtered;
   }
 
   @override
   Widget build(BuildContext context) {
     final isAdminAsync = ref.watch(isAdminFromClaimsProvider);
     final isAdmin = isAdminAsync.valueOrNull ?? false;
-    final paginatedState = ref.watch(paginatedOrdersProvider);
-    final stats = _AdminOrderStats.fromOrders(paginatedState.orders);
+    final ordersAsync = ref.watch(allOrdersProvider);
+    final stats = ordersAsync.maybeWhen(
+      data: _AdminOrderStats.fromOrders,
+      orElse: _AdminOrderStats.empty,
+    );
 
     if (!isAdmin) {
       return Scaffold(
@@ -108,6 +159,12 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
               child: _buildStatsGrid(stats),
             ),
+            _buildLabNavRow(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildSearchAndSort(),
+            ),
+            const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: _buildTabBar(stats),
@@ -117,10 +174,12 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildOrderList(paginatedState, 'pending'),
-                  _buildOrderList(paginatedState, 'confirmed'),
-                  _buildOrderList(paginatedState, 'delivered'),
-                  _buildOrderList(paginatedState, 'all'),
+                  _buildOrderList(ordersAsync, 'pending'),
+                  _buildOrderList(ordersAsync, 'confirmed'),
+                  _buildOrderList(ordersAsync, 'preparing'),
+                  _buildOrderList(ordersAsync, 'outForDelivery'),
+                  _buildOrderList(ordersAsync, 'delivered'),
+                  _buildOrderList(ordersAsync, 'all'),
                 ],
               ),
             ),
@@ -208,24 +267,28 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
             value: '${stats.pendingCount}',
             color: const Color(0xFFFF9800),
             icon: Icons.pending_actions_rounded,
+            tabIndex: 0,
           ),
           _AdminStatCardData(
             label: 'Confirmed',
             value: '${stats.confirmedCount}',
             color: const Color(0xFF185FA5),
             icon: Icons.inventory_2_rounded,
+            tabIndex: 1,
           ),
           _AdminStatCardData(
             label: 'Delivered Today',
             value: '${stats.deliveredTodayCount}',
             color: AppColors.primary,
             icon: Icons.local_shipping_rounded,
+            tabIndex: 4,
           ),
           _AdminStatCardData(
             label: 'Today Revenue',
             value: 'Rs ${stats.todayRevenue.toStringAsFixed(0)}',
             color: const Color(0xFF0E8E62),
             icon: Icons.payments_rounded,
+            tabIndex: null,
           ),
         ];
 
@@ -241,7 +304,8 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   }
 
   Widget _buildStatCard(_AdminStatCardData card) {
-    return Container(
+    final isClickable = card.tabIndex != null;
+    final cardWidget = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -291,6 +355,116 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
         ],
       ),
     );
+
+    if (!isClickable) return cardWidget;
+
+    return InkWell(
+      onTap: () => _jumpToTab(card.tabIndex!),
+      borderRadius: BorderRadius.circular(16),
+      child: cardWidget,
+    );
+  }
+
+  Widget _buildLabNavRow() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: Row(
+        children: [
+          _navChip('Lab Orders', Icons.science_outlined, () => context.push('/admin/lab-orders'), const Color(0xFF0277BD)),
+          const SizedBox(width: 8),
+          _navChip('Lab Packages', Icons.inventory_2_outlined, () => context.push('/admin/lab-packages'), const Color(0xFF6A1B9A)),
+          const SizedBox(width: 8),
+          _navChip('Manage Tests', Icons.biotech_outlined, () => context.push('/admin/lab-tests'), const Color(0xFF00838F)),
+          const SizedBox(width: 8),
+          _navChip('Prescriptions', Icons.description_outlined, () => context.push('/admin/prescriptions'), const Color(0xFFE65100)),
+        ],
+      ),
+    );
+  }
+
+  Widget _navChip(String label, IconData icon, VoidCallback onTap, Color color) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w600, color: color),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchAndSort() {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE8ECE7)),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                hintText: 'Search orders...',
+                hintStyle: GoogleFonts.sora(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                ),
+                prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+              style: GoogleFonts.sora(fontSize: 13),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE8ECE7)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _sortOrder,
+              icon: const Icon(Icons.sort, color: AppColors.textSecondary, size: 20),
+              style: GoogleFonts.sora(fontSize: 13, color: AppColors.textPrimary),
+              items: const [
+                DropdownMenuItem(value: 'newest', child: Text('Newest')),
+                DropdownMenuItem(value: 'oldest', child: Text('Oldest')),
+                DropdownMenuItem(value: 'amount_high', child: Text('Amount ↑')),
+                DropdownMenuItem(value: 'amount_low', child: Text('Amount ↓')),
+              ],
+              onChanged: (value) {
+                if (value != null) _onSortChanged(value);
+              },
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildTabBar(_AdminOrderStats stats) {
@@ -312,6 +486,8 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
         tabs: [
           _AdminCountTab(label: 'Pending', count: stats.pendingCount),
           _AdminCountTab(label: 'Confirmed', count: stats.confirmedCount),
+          _AdminCountTab(label: 'Preparing', count: stats.preparingCount),
+          _AdminCountTab(label: 'Out for Delivery', count: stats.outForDeliveryCount),
           _AdminCountTab(label: 'Delivered', count: stats.deliveredCount),
           _AdminCountTab(label: 'All', count: stats.totalCount),
         ],
@@ -319,57 +495,39 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     );
   }
 
-  Widget _buildOrderList(PaginatedOrdersState paginatedState, String status) {
-    if (paginatedState.orders.isEmpty && paginatedState.isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+  Widget _buildOrderList(AsyncValue<List<OrderModel>> ordersAsync, String status) {
+    return ordersAsync.when(
+      data: (orders) {
+        var filteredOrders = status == 'all'
+            ? orders
+            : orders.where((order) => order.status.name == status).toList();
+        
+        filteredOrders = _filterAndSortOrders(filteredOrders);
 
-    if (paginatedState.orders.isEmpty && paginatedState.error != null) {
-      return Center(
+        if (filteredOrders.isEmpty) {
+          return _buildEmptyState(status);
+        }
+
+        return RefreshIndicator(
+          color: Colors.white,
+          backgroundColor: const Color(0xFF0F6E56),
+          onRefresh: _onRefresh,
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            itemCount: filteredOrders.length,
+            itemBuilder: (context, index) => _buildOrderCard(filteredOrders[index]),
+          ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: ErrorStateWidget(
-            message: 'Could not load orders.\n${paginatedState.error}',
+            message: 'Could not load orders.\n$error',
             onRetry: _onRefresh,
           ),
-        ),
-      );
-    }
-
-    final filteredOrders = status == 'all'
-        ? paginatedState.orders
-        : paginatedState.orders.where((order) => order.status.name == status).toList();
-
-    if (filteredOrders.isEmpty) {
-      return _buildEmptyState(status);
-    }
-
-    return RefreshIndicator(
-      color: Colors.white,
-      backgroundColor: const Color(0xFF0F6E56),
-      onRefresh: _onRefresh,
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (scrollInfo) {
-          if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200 &&
-              !paginatedState.isLoading &&
-              paginatedState.hasMore) {
-            ref.read(paginatedOrdersProvider.notifier).loadMoreOrders();
-          }
-          return false;
-        },
-        child: ListView.builder(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          itemCount: filteredOrders.length + (paginatedState.hasMore ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index >= filteredOrders.length) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            return _buildOrderCard(filteredOrders[index]);
-          },
         ),
       ),
     );
@@ -877,12 +1035,46 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     }
   }
 
-  Future<void> _updateOrderStatus(String orderId, OrderStatus newStatus) async {
+  Future<void> _updateOrderStatus(String orderId, OrderStatus newStatus, {String? updatedBy}) async {
     try {
-      await FirebaseFirestore.instance.collection('orders').doc(orderId).update({
+      final orderDoc = await FirebaseFirestore.instance.collection('orders').doc(orderId).get();
+      if (!orderDoc.exists) return;
+      
+      final orderData = orderDoc.data()!;
+      final currentStatus = orderData['status'] ?? 'pending';
+      final userId = orderData['userId'] ?? '';
+      
+      final existingHistory = (orderData['statusHistory'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [];
+      existingHistory.add({
+        'status': newStatus.name,
+        'timestamp': FieldValue.serverTimestamp(),
+        'updatedBy': updatedBy ?? 'admin',
+        'role': 'admin',
+      });
+      
+      final updateData = <String, dynamic>{
         'status': newStatus.name,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+        'statusHistory': existingHistory,
+      };
+      
+      if (newStatus == OrderStatus.delivered) {
+        updateData['deliveredAt'] = FieldValue.serverTimestamp();
+      }
+      
+      await FirebaseFirestore.instance.collection('orders').doc(orderId).update(updateData);
+      
+      if (userId.isNotEmpty && currentStatus != newStatus.name) {
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'userId': userId,
+          'title': 'Order Status Updated',
+          'body': 'Your order has been ${newStatus.displayName.toLowerCase()}.',
+          'type': 'order_status',
+          'orderId': orderId,
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1094,12 +1286,14 @@ class _AdminStatCardData {
     required this.value,
     required this.color,
     required this.icon,
+    this.tabIndex,
   });
 
   final String label;
   final String value;
   final Color color;
   final IconData icon;
+  final int? tabIndex;
 }
 
 class _AdminOrderStats {
@@ -1107,6 +1301,8 @@ class _AdminOrderStats {
     required this.totalCount,
     required this.pendingCount,
     required this.confirmedCount,
+    required this.preparingCount,
+    required this.outForDeliveryCount,
     required this.deliveredCount,
     required this.deliveredTodayCount,
     required this.todayRevenue,
@@ -1115,6 +1311,8 @@ class _AdminOrderStats {
   final int totalCount;
   final int pendingCount;
   final int confirmedCount;
+  final int preparingCount;
+  final int outForDeliveryCount;
   final int deliveredCount;
   final int deliveredTodayCount;
   final double todayRevenue;
@@ -1125,6 +1323,8 @@ class _AdminOrderStats {
 
     var pendingCount = 0;
     var confirmedCount = 0;
+    var preparingCount = 0;
+    var outForDeliveryCount = 0;
     var deliveredCount = 0;
     var deliveredTodayCount = 0;
     var todayRevenue = 0.0;
@@ -1136,12 +1336,19 @@ class _AdminOrderStats {
       if (order.status == OrderStatus.confirmed) {
         confirmedCount++;
       }
+      if (order.status == OrderStatus.preparing) {
+        preparingCount++;
+      }
+      if (order.status == OrderStatus.outForDelivery) {
+        outForDeliveryCount++;
+      }
       if (order.status == OrderStatus.delivered) {
         deliveredCount++;
+        final deliveredDate = order.deliveredAt ?? order.createdAt;
         final orderDay = DateTime(
-          order.createdAt.year,
-          order.createdAt.month,
-          order.createdAt.day,
+          deliveredDate.year,
+          deliveredDate.month,
+          deliveredDate.day,
         );
         if (orderDay == today) {
           deliveredTodayCount++;
@@ -1154,6 +1361,8 @@ class _AdminOrderStats {
       totalCount: orders.length,
       pendingCount: pendingCount,
       confirmedCount: confirmedCount,
+      preparingCount: preparingCount,
+      outForDeliveryCount: outForDeliveryCount,
       deliveredCount: deliveredCount,
       deliveredTodayCount: deliveredTodayCount,
       todayRevenue: todayRevenue,
@@ -1165,6 +1374,8 @@ class _AdminOrderStats {
       totalCount: 0,
       pendingCount: 0,
       confirmedCount: 0,
+      preparingCount: 0,
+      outForDeliveryCount: 0,
       deliveredCount: 0,
       deliveredTodayCount: 0,
       todayRevenue: 0,

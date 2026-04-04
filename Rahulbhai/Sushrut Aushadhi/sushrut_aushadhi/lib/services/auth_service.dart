@@ -161,6 +161,8 @@ class AuthService {
             throw Exception('Password is too weak. Use at least 6 characters.');
           case 'invalid-email':
             throw Exception('Invalid email address.');
+          case 'operation-not-allowed':
+            throw Exception('Email/password sign-in is not enabled. Please contact support.');
           default:
             throw Exception('Sign up failed: ${e.message}');
         }
