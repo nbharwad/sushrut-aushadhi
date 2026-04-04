@@ -9,16 +9,15 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/utils/helpers.dart';
 import '../../core/utils/responsive.dart';
+import '../lab/widgets/lab_home_widget.dart';
 import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/error_state_widget.dart';
-import '../../core/widgets/notification_panel.dart';
 import '../../models/article_model.dart';
 import '../../models/medicine_model.dart';
 import '../../providers/articles_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/medicines_provider.dart';
-import '../../providers/notification_provider.dart';
 import '../../services/local_data_service.dart';
 import '../../core/constants/app_strings.dart';
 import '../../services/remote_config_service.dart';
@@ -42,6 +41,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Timer? _bannerTimer;
   int _currentBanner = 0;
   bool _isLoading = true;
+  int _activeSection = 0; // 0 = Medicines, 1 = Lab Tests
   List<dynamic> _categories = [];
   List<dynamic> _banners = [];
   List<dynamic> _healthTips = [];
@@ -185,8 +185,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               children: [
                 _topBar(),
                 _trustBanner(),
+                _sectionSwitcher(),
                 if (!RemoteConfigService.isCurrentlyOpen) _storeClosedBanner(),
-                if (_isLoading)
+                if (_activeSection == 1)
+                  _labSection()
+                else if (_isLoading)
                   _loading()
                 else ...[
                   _hero(),
@@ -204,6 +207,62 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
     );
+  }
+
+Widget _sectionSwitcher() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: Container(
+        height: 44,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4F5F3),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            _switcherTab(0, Icons.medication_rounded, 'Medicines', _primary),
+            _switcherTab(1, Icons.biotech_rounded, 'Lab Tests', const Color(0xFF0277BD)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _switcherTab(int index, IconData icon, String label, Color activeColor) {
+    final isActive = _activeSection == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _activeSection = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: isActive ? activeColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: isActive ? Colors.white : _textSecondary),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.sora(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isActive ? Colors.white : _textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _labSection() {
+    return const LabHomeWidget();
   }
 
 Widget _trustBanner() {
@@ -412,65 +471,6 @@ Text(
                   },
                 ),
               ),
-              Consumer(
-                builder: (context, ref, _) {
-                  final unread = ref.watch(unreadCountProvider);
-                  return GestureDetector(
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        barrierColor: Colors.black26,
-                        builder: (_) => Dialog(
-                          alignment: Alignment.topRight,
-                          insetPadding: const EdgeInsets.only(top: 60, right: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const NotificationPanel(),
-                        ),
-                      );
-                    },
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F7F5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.notifications_outlined,
-                              size: 20, color: Color(0xFF1A1A1A)),
-                        ),
-                        if (unread > 0)
-                          Positioned(
-                            top: 2,
-                            right: 2,
-                            child: Container(
-                              width: 14,
-                              height: 14,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE53935),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 1.5),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  unread > 9 ? '9+' : '$unread',
-                                  style: const TextStyle(
-                                    fontSize: 8,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              )
             ],
           ),
           const SizedBox(height: 14),

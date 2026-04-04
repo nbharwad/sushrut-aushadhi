@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../providers/notification_provider.dart';
 import '../../../providers/auth_provider.dart';
-import '../../../core/widgets/notification_panel.dart';
 
 class HomeTopBar extends ConsumerWidget {
   const HomeTopBar({super.key});
@@ -48,7 +46,7 @@ class HomeTopBar extends ConsumerWidget {
                                     color: AppColors.textPrimary,
                                     fontWeight: FontWeight.w700));
                           },
-                          loading: () => Text('Loading...',
+                          loading: () => Text('Anand, Gujarat',
                               style: GoogleFonts.sora(
                                   fontSize: 15,
                                   color: AppColors.textPrimary,
@@ -65,65 +63,6 @@ class HomeTopBar extends ConsumerWidget {
                   ],
                 ),
               ),
-              Consumer(
-                builder: (context, ref, _) {
-                  final unread = ref.watch(unreadCountProvider);
-                  return GestureDetector(
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        barrierColor: Colors.black26,
-                        builder: (_) => Dialog(
-                          alignment: Alignment.topRight,
-                          insetPadding: const EdgeInsets.only(top: 60, right: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const NotificationPanel(),
-                        ),
-                      );
-                    },
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F7F5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.notifications_outlined,
-                              size: 20, color: Color(0xFF1A1A1A)),
-                        ),
-                        if (unread > 0)
-                          Positioned(
-                            top: 2,
-                            right: 2,
-                            child: Container(
-                              width: 14,
-                              height: 14,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE53935),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 1.5),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  unread > 9 ? '9+' : '$unread',
-                                  style: const TextStyle(
-                                    fontSize: 8,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              )
             ],
           ),
           const SizedBox(height: 14),

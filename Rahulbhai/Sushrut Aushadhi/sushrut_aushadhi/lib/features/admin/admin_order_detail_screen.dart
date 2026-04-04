@@ -10,7 +10,6 @@ import '../../core/utils/helpers.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/notification_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../services/notification_service.dart';
 import '../../services/whatsapp_service.dart';
@@ -92,51 +91,6 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
             ? order.orderId.substring(order.orderId.length - 6).toUpperCase() 
             : order.orderId.toUpperCase();
         
-        final notifier = ref.read(notificationProvider.notifier);
-        
-        switch (newStatus) {
-          case 'confirmed':
-            await notifier.addNotification(
-              title: 'Order Confirmed ✅',
-              body: 'Order #SA-$shortId has been confirmed by the pharmacy.',
-              type: 'order_confirmed',
-              orderId: order.orderId,
-            );
-            break;
-          case 'preparing':
-            await notifier.addNotification(
-              title: 'Order Being Prepared 🔄',
-              body: 'Your medicines are being packed.',
-              type: 'order_preparing',
-              orderId: order.orderId,
-            );
-            break;
-          case 'out_for_delivery':
-            await notifier.addNotification(
-              title: 'Out for Delivery 🚚',
-              body: 'Your order is on the way! Keep cash ready.',
-              type: 'out_for_delivery',
-              orderId: order.orderId,
-            );
-            break;
-          case 'delivered':
-            await notifier.addNotification(
-              title: 'Order Delivered 🎉',
-              body: 'Your order has been delivered. Thank you for choosing us!',
-              type: 'delivered',
-              orderId: order.orderId,
-            );
-            break;
-          case 'cancelled':
-            await notifier.addNotification(
-              title: 'Order Cancelled ❌',
-              body: 'Your order has been cancelled. Call us for help.',
-              type: 'cancelled',
-              orderId: order.orderId,
-            );
-            break;
-        }
-
         final itemNames = order.items.map((item) => item.medicineName).toList();
         
         try {

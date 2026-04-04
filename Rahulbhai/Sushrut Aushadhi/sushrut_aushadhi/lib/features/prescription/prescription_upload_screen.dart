@@ -10,7 +10,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/widgets/login_prompt_widget.dart';
 import '../../services/connectivity_service.dart';
 import '../../services/prescription_service.dart';
-import '../../providers/notification_provider.dart';
 import '../../core/constants/app_colors.dart';
 
 class PrescriptionUploadScreen
@@ -317,16 +316,6 @@ class _PrescriptionUploadScreenState
         userName: userName,
         imageUrl: url,
       );
-
-      // Add notification
-      await ref
-          .read(notificationProvider.notifier)
-          .addNotification(
-            title: 'Prescription Uploaded',
-            body: 'Your prescription is under '
-                'review by our pharmacist.',
-            type: 'prescription',
-          );
 
       if (!mounted) return;
       setState(() => _isUploading = false);

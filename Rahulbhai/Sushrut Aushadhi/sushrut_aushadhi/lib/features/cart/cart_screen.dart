@@ -12,7 +12,6 @@ import '../../core/di/service_providers.dart';
 import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
-import '../../providers/notification_provider.dart';
 import '../../services/connectivity_service.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
@@ -893,13 +892,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       final shortOrderId = newOrderId.length > 6
           ? newOrderId.substring(newOrderId.length - 6).toUpperCase()
           : newOrderId.toUpperCase();
-
-      await ref.read(notificationProvider.notifier).addNotification(
-        title: 'Order Placed! 📦',
-        body: 'Your order #SA-$shortOrderId has been placed. We will confirm it soon.',
-        type: 'order_placed',
-        orderId: newOrderId,
-      );
 
       if (!mounted) {
         return;
