@@ -868,32 +868,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         currentUser.deliveryAddress.pincode.isNotEmpty;
 
     if (!hasPhone || !hasAddress || !hasPincode) {
-      final shouldFillAddress = await showDialog<bool>(
+      final saved = await showModalBottomSheet<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Complete Your Profile',
-              style: GoogleFonts.sora(fontWeight: FontWeight.bold)),
-          content: Text(
-            'Please fill in your phone number, address, and pincode to place an order.',
-            style: GoogleFonts.sora(),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text('Cancel',
-                  style: GoogleFonts.sora(color: AppColors.textSecondary)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text('Fill Address',
-                  style: GoogleFonts.sora(color: AppColors.primary)),
-            ),
-          ],
-        ),
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => const _CheckoutAddressSheet(),
       );
-
-      if (shouldFillAddress == true && mounted) {
-        context.go('/profile?redirectTo=cart');
+      if (saved == true && mounted) {
+        await _createOrder();
       }
       return;
     }
@@ -1004,5 +987,347 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         setState(() => _isProcessing = false);
       }
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Inline checkout address bottom sheet — shown when profile is incomplete
+// ---------------------------------------------------------------------------
+
+class _CheckoutAddressSheet extends ConsumerStatefulWidget {
+  const _CheckoutAddressSheet();
+
+  @override
+  ConsumerState<_CheckoutAddressSheet> createState() =>
+      _CheckoutAddressSheetState();
+}
+
+class _CheckoutAddressSheetState extends ConsumerState<_CheckoutAddressSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _pincodeController = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(currentUserProvider).valueOrNull;
+      if (user != null && mounted) {
+        _phoneController.text = user.phone;
+        _addressController.text = user.deliveryAddress.line1.isNotEmpty
+            ? user.deliveryAddress.line1
+            : user.address;
+        _pincodeController.text = user.deliveryAddress.pincode.isNotEmpty
+            ? user.deliveryAddress.pincode
+            : user.pincode;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _addressController.dispose();
+    _pincodeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveAndContinue() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
+    try {
+      final user = ref.read(currentUserProvider).valueOrNull;
+      if (user == null) throw Exception('User not found');
+
+      await ref.read(firestoreServiceProvider).updateUser(user.uid, {
+        'phone': _phoneController.text.trim(),
+        'address': _addressController.text.trim(),
+        'pincode': _pincodeController.text.trim(),
+      });
+
+      ref.invalidate(currentUserProvider);
+      // Wait for the stream to emit fresh data before closing
+      await ref.read(currentUserProvider.future).catchError((_) => null);
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not save details: $e', style: GoogleFonts.sora()),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── Drag handle ──
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // ── Scrollable content ──
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(20, 12, 20, 16 + bottomInset + bottomPadding),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withAlpha(20),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(Icons.location_on_outlined,
+                              color: AppColors.primary, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Delivery Details',
+                              style: GoogleFonts.sora(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              'Required to place your order',
+                              style: GoogleFonts.sora(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Phone
+                    TextFormField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.next,
+                      style: GoogleFonts.sora(fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: 'Phone Number',
+                        labelStyle: GoogleFonts.sora(color: AppColors.textSecondary),
+                        prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              BorderSide(color: AppColors.primary, width: 1.5),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.red),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Colors.red, width: 1.5),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Phone number is required';
+                        }
+                        if (v.trim().length < 10) {
+                          return 'Enter a valid 10-digit phone number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Address
+                    TextFormField(
+                      controller: _addressController,
+                      keyboardType: TextInputType.streetAddress,
+                      textInputAction: TextInputAction.next,
+                      maxLines: 3,
+                      minLines: 2,
+                      style: GoogleFonts.sora(fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: 'Delivery Address',
+                        labelStyle: GoogleFonts.sora(color: AppColors.textSecondary),
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.only(bottom: 32),
+                          child: Icon(Icons.home_outlined, size: 20),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              BorderSide(color: AppColors.primary, width: 1.5),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.red),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Colors.red, width: 1.5),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Delivery address is required';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Pincode
+                    TextFormField(
+                      controller: _pincodeController,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.done,
+                      maxLength: 6,
+                      style: GoogleFonts.sora(fontSize: 15),
+                      onFieldSubmitted: (_) => _saveAndContinue(),
+                      decoration: InputDecoration(
+                        labelText: 'Pincode',
+                        labelStyle: GoogleFonts.sora(color: AppColors.textSecondary),
+                        prefixIcon: const Icon(Icons.pin_drop_outlined, size: 20),
+                        counterText: '',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              BorderSide(color: AppColors.primary, width: 1.5),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.red),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Colors.red, width: 1.5),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Pincode is required';
+                        }
+                        if (v.trim().length != 6) {
+                          return 'Enter a valid 6-digit pincode';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Save & Continue button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: FilledButton(
+                        onPressed: _isSaving ? null : _saveAndContinue,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          disabledBackgroundColor:
+                              AppColors.primary.withAlpha(120),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2.5, color: Colors.white),
+                              )
+                            : Text(
+                                'Save & Continue',
+                                style: GoogleFonts.sora(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
