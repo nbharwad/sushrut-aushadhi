@@ -40,16 +40,6 @@ final isAdminProvider = Provider<bool>((ref) {
   );
 });
 
-final isAdminFromClaimsProvider = FutureProvider<bool>((ref) async {
-  final authState = ref.watch(authStateProvider);
-  final user = authState.valueOrNull;
-  if (user == null) return false;
-
-  final idTokenResult = await user.getIdTokenResult(false);
-  final role = idTokenResult.claims?['role'] as String?;
-  return role == 'admin';
-});
-
 /// True only after the auth stream has emitted at least once AND the role
 /// future has settled. Used by the splash screen to prevent premature routing.
 final authReadyProvider = Provider<bool>((ref) {
@@ -59,4 +49,51 @@ final authReadyProvider = Provider<bool>((ref) {
   if (user == null) return true;
   final roleAsync = ref.watch(roleProvider);
   return roleAsync is! AsyncLoading;
+});
+
+// ── Typed Admin Auth State (for critical flows) ─────────────────────────────────
+// Note: This provider is SCOPED to admin-gating, not a general auth-role model.
+
+enum AdminAuthStatus { loading, admin, notAdmin, error }
+
+class AdminAuthState {
+  final AdminAuthStatus status;
+  final String? role;
+  final Object? error;
+
+  const AdminAuthState({
+    required this.status,
+    this.role,
+    this.error,
+  });
+}
+
+/// Canonical admin auth state provider for critical routing and data-fetch decisions.
+/// - Returns loading while auth or claim refresh is in flight
+/// - Returns admin only when JWT claim role is admin
+/// - Returns notAdmin when claims resolve but role is not admin
+/// - Returns error when token refresh/claim resolution throws
+final adminAuthStateProvider = FutureProvider<AdminAuthState>((ref) async {
+  final authState = ref.watch(authStateProvider);
+
+  if (authState is AsyncLoading) {
+    return const AdminAuthState(status: AdminAuthStatus.loading);
+  }
+
+  final user = authState.valueOrNull;
+  if (user == null) {
+    return const AdminAuthState(status: AdminAuthStatus.notAdmin);
+  }
+
+  try {
+    final idTokenResult = await user.getIdTokenResult(true);
+    final role = idTokenResult.claims?['role'] as String?;
+    return AdminAuthState(
+      status:
+          role == 'admin' ? AdminAuthStatus.admin : AdminAuthStatus.notAdmin,
+      role: role,
+    );
+  } catch (e) {
+    return AdminAuthState(status: AdminAuthStatus.error, error: e);
+  }
 });

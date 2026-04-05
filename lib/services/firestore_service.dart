@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/category_model.dart';
@@ -14,7 +15,8 @@ class FirestoreService {
   final _uuid = const Uuid();
   late final RateLimitService _rateLimit;
 
-  FirestoreService({FirebaseFirestore? firestore}) : _db = firestore ?? FirebaseFirestore.instance {
+  FirestoreService({FirebaseFirestore? firestore})
+      : _db = firestore ?? FirebaseFirestore.instance {
     _rateLimit = RateLimitService(firestore: _db);
   }
 
@@ -33,8 +35,7 @@ class FirestoreService {
     try {
       await for (final snapshot in query.snapshots()) {
         yield snapshot.docs
-            .map((doc) =>
-                MedicineModel.fromFirestore(doc.data(), doc.id))
+            .map((doc) => MedicineModel.fromFirestore(doc.data(), doc.id))
             .toList();
       }
     } catch (_) {
@@ -54,7 +55,8 @@ class FirestoreService {
     } catch (_) {
       final fallback = await LocalDataService.getMedicineById(id);
       if (fallback == null) return null;
-      return MedicineModel.fromFirestore(fallback, fallback['id']?.toString() ?? id);
+      return MedicineModel.fromFirestore(
+          fallback, fallback['id']?.toString() ?? id);
     }
   }
 
@@ -99,7 +101,8 @@ class FirestoreService {
     await _rateLimit.checkOrderRateLimit(order.userId);
 
     final sanitizedName = _sanitizeString(order.userName);
-    final sanitizedNotes = order.notes != null ? _sanitizeString(order.notes!) : null;
+    final sanitizedNotes =
+        order.notes != null ? _sanitizeString(order.notes!) : null;
 
     final orderId = order.orderId.isNotEmpty ? order.orderId : placeOrderId();
     final orderWithId = OrderModel(
@@ -120,11 +123,11 @@ class FirestoreService {
     );
 
     await _db.collection('orders').doc(orderId).set(orderWithId.toMap());
-    
+
     AppLogger.info("Order placed: $orderId", tag: "Order");
     AppLogger.logCustomKey("order_id", orderId);
     AppLogger.logCustomKey("order_total", order.totalAmount.toString());
-    
+
     return orderId;
   }
 
@@ -161,10 +164,16 @@ class FirestoreService {
     });
   }
 
-  Future<({List<OrderModel> orders, DocumentSnapshot? lastDoc})> getOrdersPaginated({
+  Future<({List<OrderModel> orders, DocumentSnapshot? lastDoc})>
+      getOrdersPaginated({
     DocumentSnapshot? lastDoc,
     int limit = 20,
   }) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    AppLogger.debug('Admin orders fetch start', tag: 'Firestore');
+    AppLogger.debug('UID: $uid, lastDoc: ${lastDoc != null}, limit: $limit',
+        tag: 'Firestore');
+
     Query<Map<String, dynamic>> query = _db
         .collection('orders')
         .orderBy('createdAt', descending: true)
@@ -174,13 +183,40 @@ class FirestoreService {
       query = query.startAfterDocument(lastDoc);
     }
 
-    final snapshot = await query.get();
-    return (
-      orders: snapshot.docs
-          .map((doc) => OrderModel.fromFirestore(doc.data(), doc.id))
-          .toList(),
-      lastDoc: snapshot.docs.isNotEmpty ? snapshot.docs.last : null,
-    );
+    try {
+      final snapshot = await query.get();
+      AppLogger.debug('Admin orders fetch end: ${snapshot.docs.length} docs',
+          tag: 'Firestore');
+      return (
+        orders: snapshot.docs
+            .map((doc) => OrderModel.fromFirestore(doc.data(), doc.id))
+            .toList(),
+        lastDoc: snapshot.docs.isNotEmpty ? snapshot.docs.last : null,
+      );
+    } catch (e) {
+      if (e is FirebaseException) {
+        final code = e.code;
+        final message = e.message?.toLowerCase() ?? '';
+        AppLogger.error('Admin orders fetch error', error: e, tag: 'Firestore');
+        if (code == 'permission-denied') {
+          AppLogger.warning('Permission denied for admin orders',
+              tag: 'Firestore');
+        } else if (code == 'failed-precondition') {
+          if (message.contains('index') || message.contains('query')) {
+            AppLogger.warning('Missing index for admin orders query',
+                tag: 'Firestore');
+          } else {
+            AppLogger.warning('Query precondition failed for admin orders',
+                tag: 'Firestore');
+          }
+        } else if (code == 'unavailable') {
+          AppLogger.warning('Firestore unavailable', tag: 'Firestore');
+        }
+      } else {
+        AppLogger.error('Admin orders fetch error', error: e, tag: 'Firestore');
+      }
+      rethrow;
+    }
   }
 
   Stream<List<OrderModel>> getOrdersByStatus(String status, {int limit = 100}) {
@@ -235,6 +271,16 @@ class FirestoreService {
     return null;
   }
 
+  Future<UserModel?> getUserFresh(String uid) async {
+    final doc = await _db.collection('users').doc(uid).get(
+          GetOptions(source: Source.server),
+        );
+    if (doc.exists) {
+      return UserModel.fromFirestore(doc.data()!, uid);
+    }
+    return null;
+  }
+
   Stream<UserModel?> getUserStream(String uid) {
     return _db.collection('users').doc(uid).snapshots().map((doc) {
       if (doc.exists) {
@@ -245,11 +291,15 @@ class FirestoreService {
   }
 
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
-    await _db.collection('users').doc(uid).update(data);
+    await _db.collection('users').doc(uid).set(data, SetOptions(merge: true));
   }
 
   Stream<List<CategoryModel>> getCategoriesStream() {
-    return _db.collection('categories').orderBy('order').snapshots().map((snapshot) {
+    return _db
+        .collection('categories')
+        .orderBy('order')
+        .snapshots()
+        .map((snapshot) {
       return snapshot.docs
           .map((doc) => CategoryModel.fromFirestore(doc.data(), doc.id))
           .toList();
