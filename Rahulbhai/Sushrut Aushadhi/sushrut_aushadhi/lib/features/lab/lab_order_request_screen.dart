@@ -5,9 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../models/lab_order_model.dart';
+import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/lab_providers.dart';
-import '../../services/lab_service.dart';
 
 class LabOrderRequestScreen extends ConsumerStatefulWidget {
   final String? packageId;
@@ -41,9 +41,12 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
     _isPackageBooking = widget.packageId != null && widget.preselectedTestIds.isNotEmpty;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final user = ref.read(currentUserProvider).valueOrNull;
-      if (user != null && user.address.isNotEmpty) {
-        _addressController.text = user.address;
+      final u = ref.read(currentUserProvider).valueOrNull;
+      if (u == null) return;
+      if (u.address.isNotEmpty) {
+        _addressController.text = u.address;
+      } else if (u.deliveryAddress.line1.isNotEmpty) {
+        _addressController.text = u.deliveryAddress.toDisplayString();
       }
     });
   }
@@ -81,7 +84,7 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
         .toList();
   }
 
-  Future<void> _submitOrder(List<LabTestModel> tests) async {
+  Future<void> _submitOrder(List<LabTestModel> tests, UserModel? user) async {
     final selectedItems = _getSelectedTestItems(tests);
     final totalAmount = _getTotalAmount(tests);
 
@@ -99,32 +102,39 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
       return;
     }
 
+    // Validate user data before showing loading state
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unable to load your profile. Please try again.', style: GoogleFonts.sora()),
+        ),
+      );
+      return;
+    }
+
+    debugPrint('[LabBooking] name="${user.name}" phone="${user.phone}"');
+
+    if (user.name.trim().isEmpty || user.phone.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please complete your profile (name & phone) before booking.',
+            style: GoogleFonts.sora(),
+          ),
+          action: SnackBarAction(
+            label: 'Edit Profile',
+            onPressed: () => context.push('/profile'),
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
-      final user = ref.read(currentUserProvider).valueOrNull;
-      if (user == null) throw Exception('User not found');
-
-      // Guard: name and phone must be set or lab_service will reject the order
-      if (user.name.trim().isEmpty || user.phone.trim().isEmpty) {
-        setState(() => _isSubmitting = false);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Please complete your profile (name & phone) before booking.',
-              style: GoogleFonts.sora(),
-            ),
-            action: SnackBarAction(
-              label: 'Edit Profile',
-              onPressed: () => context.push('/profile'),
-            ),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-        return;
-      }
-
       String? notesText = _notesController.text.trim().isNotEmpty
           ? _notesController.text.trim()
           : null;
@@ -191,6 +201,7 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
   @override
   Widget build(BuildContext context) {
     final testsAsync = ref.watch(labTestsProvider);
+    final user = ref.watch(currentUserProvider).valueOrNull;
     final isCompact = MediaQuery.of(context).size.width < 360;
     final tests = testsAsync.valueOrNull ?? [];
 
@@ -217,7 +228,7 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
                     const SizedBox(height: 24),
                     _buildOrderSummary(tests),
                     const SizedBox(height: 24),
-                    _buildSubmitButton(tests),
+                    _buildSubmitButton(tests, user),
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -663,7 +674,7 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
     );
   }
 
-  Widget _buildSubmitButton(List<LabTestModel> tests) {
+  Widget _buildSubmitButton(List<LabTestModel> tests, UserModel? user) {
     final hasTests = _isPackageBooking
         ? widget.preselectedTestIds.isNotEmpty
         : _getSelectedTestItems(tests).isNotEmpty;
@@ -671,7 +682,7 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _isSubmitting || !hasTests ? null : () => _submitOrder(tests),
+        onPressed: _isSubmitting || !hasTests ? null : () => _submitOrder(tests, user),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.labPrimary,
           foregroundColor: Colors.white,
