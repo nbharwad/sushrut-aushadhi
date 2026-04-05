@@ -858,14 +858,33 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       return;
     }
 
-    final hasPhone = currentUser.phone.isNotEmpty;
-    final hasAddressString = currentUser.address.isNotEmpty;
-    final hasDeliveryAddress = currentUser.deliveryAddress.line1.isNotEmpty ||
-        currentUser.deliveryAddress.city.isNotEmpty ||
-        currentUser.deliveryAddress.pincode.isNotEmpty;
+    // Fetch server-fresh user data for accurate profile completeness check
+    final freshUser =
+        await ref.read(firestoreServiceProvider).getUserFresh(user.uid);
+
+    // Debug logging for checkout validation
+    print("🔍 Checkout Check - Fresh Data:");
+    print(
+        "   Address: '${freshUser?.address}' (trimmed: ${freshUser?.address.trim().isNotEmpty})");
+    print("   deliveryAddress: '${freshUser?.deliveryAddress.line1}'");
+    print(
+        "   Pincode: '${freshUser?.pincode}' (trimmed: ${freshUser?.pincode.trim().isNotEmpty})");
+    print(
+        "   Phone: '${freshUser?.phone}' (trimmed: ${freshUser?.phone.trim().isNotEmpty})");
+
+    final hasPhone = freshUser?.phone.trim().isNotEmpty ?? false;
+    final hasAddressString = freshUser?.address.trim().isNotEmpty ?? false;
+    final hasDeliveryAddress =
+        (freshUser?.deliveryAddress.line1.isNotEmpty ?? false) ||
+            (freshUser?.deliveryAddress.city.isNotEmpty ?? false) ||
+            (freshUser?.deliveryAddress.pincode.isNotEmpty ?? false);
     final hasAddress = hasAddressString || hasDeliveryAddress;
-    final hasPincode = currentUser.pincode.isNotEmpty ||
-        currentUser.deliveryAddress.pincode.isNotEmpty;
+    final hasPincode = (freshUser?.pincode.trim().isNotEmpty ?? false) ||
+        (freshUser?.deliveryAddress.pincode.isNotEmpty ?? false);
+
+    print(
+        "   hasPhone: $hasPhone, hasAddress: $hasAddress, hasPincode: $hasPincode");
+    print("   isProfileComplete: ${hasPhone && hasAddress && hasPincode}");
 
     if (!hasPhone || !hasAddress || !hasPincode) {
       final saved = await showModalBottomSheet<bool>(
@@ -1058,7 +1077,8 @@ class _CheckoutAddressSheetState extends ConsumerState<_CheckoutAddressSheet> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not save details: $e', style: GoogleFonts.sora()),
+          content:
+              Text('Could not save details: $e', style: GoogleFonts.sora()),
           backgroundColor: AppColors.error,
         ),
       );
@@ -1095,7 +1115,8 @@ class _CheckoutAddressSheetState extends ConsumerState<_CheckoutAddressSheet> {
           // ── Scrollable content ──
           Flexible(
             child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(20, 12, 20, 16 + bottomInset + bottomPadding),
+              padding: EdgeInsets.fromLTRB(
+                  20, 12, 20, 16 + bottomInset + bottomPadding),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -1147,7 +1168,8 @@ class _CheckoutAddressSheetState extends ConsumerState<_CheckoutAddressSheet> {
                       style: GoogleFonts.sora(fontSize: 15),
                       decoration: InputDecoration(
                         labelText: 'Phone Number',
-                        labelStyle: GoogleFonts.sora(color: AppColors.textSecondary),
+                        labelStyle:
+                            GoogleFonts.sora(color: AppColors.textSecondary),
                         prefixIcon: const Icon(Icons.phone_outlined, size: 20),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -1198,7 +1220,8 @@ class _CheckoutAddressSheetState extends ConsumerState<_CheckoutAddressSheet> {
                       style: GoogleFonts.sora(fontSize: 15),
                       decoration: InputDecoration(
                         labelText: 'Delivery Address',
-                        labelStyle: GoogleFonts.sora(color: AppColors.textSecondary),
+                        labelStyle:
+                            GoogleFonts.sora(color: AppColors.textSecondary),
                         prefixIcon: const Padding(
                           padding: EdgeInsets.only(bottom: 32),
                           child: Icon(Icons.home_outlined, size: 20),
@@ -1249,8 +1272,10 @@ class _CheckoutAddressSheetState extends ConsumerState<_CheckoutAddressSheet> {
                       onFieldSubmitted: (_) => _saveAndContinue(),
                       decoration: InputDecoration(
                         labelText: 'Pincode',
-                        labelStyle: GoogleFonts.sora(color: AppColors.textSecondary),
-                        prefixIcon: const Icon(Icons.pin_drop_outlined, size: 20),
+                        labelStyle:
+                            GoogleFonts.sora(color: AppColors.textSecondary),
+                        prefixIcon:
+                            const Icon(Icons.pin_drop_outlined, size: 20),
                         counterText: '',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
