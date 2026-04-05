@@ -4,7 +4,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:firebase_performance/firebase_performance.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,6 +26,29 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  final notification = message.notification;
+  final data = message.data;
+  
+  if (notification != null) {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final docRef = firestore.collection('notifications').doc();
+      
+      await docRef.set({
+        'userId': data['userId'] ?? '',
+        'title': notification.title ?? '',
+        'body': notification.body ?? '',
+        'type': data['type'] ?? 'general',
+        'orderId': data['orderId'],
+        'deviceId': data['deviceId'],
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error saving background notification to Firestore: $e');
+    }
+  }
 }
 
 Future<void> main() async {
@@ -40,13 +62,10 @@ Future<void> main() async {
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Initialize Crashlytics
   await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
   
-  // Pass all uncaught errors from the Flutter framework to Crashlytics
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
 
-  // Initialize App Check with Play Integrity
   await FirebaseAppCheck.instance.activate(
     androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
     appleProvider: AppleProvider.appAttest,
@@ -54,7 +73,7 @@ Future<void> main() async {
 
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
-    cacheSizeBytes: 100 * 1024 * 1024, // 100MB max
+    cacheSizeBytes: 100 * 1024 * 1024,
   );
 
   MedicineCacheService.loadCache();
@@ -67,7 +86,6 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Run the app with error zone handling
   runZonedGuarded<Future<void>>(() async {
     runApp(const ProviderScope(child: SushrutAushadhiApp()));
   }, (error, stack) {

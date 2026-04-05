@@ -135,7 +135,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           routes: [
             GoRoute(
               path: '/cart',
-              builder: (context, state) => const CartScreen(),
+              builder: (context, state) {
+                final fromProfile = state.uri.queryParameters['fromProfile'] == 'true';
+                return CartScreen(fromProfile: fromProfile);
+              },
             ),
           ],
         ),
@@ -151,7 +154,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           routes: [
             GoRoute(
               path: '/profile',
-              builder: (context, state) => const ProfileScreen(),
+              builder: (context, state) {
+                final redirectTo = state.uri.queryParameters['redirectTo'];
+                return ProfileScreen(redirectTo: redirectTo);
+              },
             ),
           ],
         ),
@@ -198,7 +204,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ),
     GoRoute(
       path: '/my-prescriptions',
-      builder: (context, state) => const MyPrescriptionsScreen(),
+      builder: (context, state) {
+        final typeParam = state.uri.queryParameters['type'];
+        return MyPrescriptionsScreen(typeFilter: typeParam);
+      },
     ),
     GoRoute(
       path: '/order/:id',

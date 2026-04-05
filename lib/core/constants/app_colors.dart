@@ -18,4 +18,10 @@ class AppColors {
   static const statusDelivered = Color(0xFF0F6E56);
   static const statusCancelled = Color(0xFFA32D2D);
   static const discountRed = Color(0xFFE53935);
+
+  // Lab Test section theme (teal-blue, distinct from pharmacy green)
+  static const labPrimary = Color(0xFF0277BD);
+  static const labPrimaryLight = Color(0xFFE1F2FE);
+  static const labSecondary = Color(0xFF0288D1);
+  static const labAccent = Color(0xFF4FC3F7);
 }
