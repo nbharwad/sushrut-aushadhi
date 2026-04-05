@@ -45,7 +45,8 @@ class LabOrderDetailScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.search_off, size: 64, color: AppColors.textSecondary),
+            const Icon(Icons.search_off,
+                size: 64, color: AppColors.textSecondary),
             const SizedBox(height: 16),
             Text('Lab order not found', style: GoogleFonts.sora()),
             const SizedBox(height: 16),
@@ -96,7 +97,8 @@ class LabOrderDetailScreen extends ConsumerWidget {
                   _buildAddressCard(order),
                   const SizedBox(height: 16),
                   _buildPaymentSummary(order),
-                  if (order.labResultUrl != null && order.labResultUrl!.isNotEmpty) ...[
+                  if (order.labResultUrl != null &&
+                      order.labResultUrl!.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     _buildLabResultCard(context, order),
                   ],
@@ -166,10 +168,11 @@ class LabOrderDetailScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.12),
+              color: statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(_getStatusIcon(order.status), color: statusColor, size: 28),
+            child: Icon(_getStatusIcon(order.status),
+                color: statusColor, size: 28),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -185,9 +188,10 @@ class LabOrderDetailScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
+                    color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
@@ -240,34 +244,34 @@ class LabOrderDetailScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           ...order.tests.map<Widget>((test) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF00897B),
-                    shape: BoxShape.circle,
-                  ),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF00897B),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        test.testName,
+                        style: GoogleFonts.sora(fontSize: 14),
+                      ),
+                    ),
+                    Text(
+                      '\u20B9${test.price.toStringAsFixed(0)}',
+                      style: GoogleFonts.sora(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    test.testName,
-                    style: GoogleFonts.sora(fontSize: 14),
-                  ),
-                ),
-                Text(
-                  '\u20B9${test.price.toStringAsFixed(0)}',
-                  style: GoogleFonts.sora(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          )),
+              )),
           const Divider(),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -359,9 +363,12 @@ class LabOrderDetailScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Payment Method', style: GoogleFonts.sora(color: AppColors.textSecondary)),
+              Text('Payment Method',
+                  style: GoogleFonts.sora(color: AppColors.textSecondary)),
               Text(
-                order.paymentMethod == 'cod' ? 'Cash on Collection' : order.paymentMethod,
+                order.paymentMethod == 'cod'
+                    ? 'Cash on Collection'
+                    : order.paymentMethod,
                 style: GoogleFonts.sora(fontWeight: FontWeight.w600),
               ),
             ],
@@ -370,19 +377,22 @@ class LabOrderDetailScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Payment Status', style: GoogleFonts.sora(color: AppColors.textSecondary)),
+              Text('Payment Status',
+                  style: GoogleFonts.sora(color: AppColors.textSecondary)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: order.paymentStatus == 'paid' 
-                      ? AppColors.primary.withOpacity(0.12) 
-                      : Colors.orange.withOpacity(0.12),
+                  color: order.paymentStatus == 'paid'
+                      ? AppColors.primary.withValues(alpha: 0.12)
+                      : Colors.orange.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   order.paymentStatus == 'paid' ? 'Paid' : 'Pending',
                   style: GoogleFonts.sora(
-                    color: order.paymentStatus == 'paid' ? AppColors.primary : Colors.orange,
+                    color: order.paymentStatus == 'paid'
+                        ? AppColors.primary
+                        : Colors.orange,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -427,63 +437,66 @@ class LabOrderDetailScreen extends ConsumerWidget {
             )
           else
             ...order.statusHistory.reversed.map<Widget>((entry) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Column(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(LabOrderStatus.fromString(entry.status)).withOpacity(0.12),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _getStatusColor(LabOrderStatus.fromString(entry.status)),
-                            width: 2,
+                      Column(
+                        children: [
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(
+                                      LabOrderStatus.fromString(entry.status))
+                                  .withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: _getStatusColor(
+                                    LabOrderStatus.fromString(entry.status)),
+                                width: 2,
+                              ),
+                            ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              entry.status.toUpperCase(),
+                              style: GoogleFonts.sora(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _formatDate(entry.timestamp),
+                              style: GoogleFonts.sora(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                            if (entry.note != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                entry.note!,
+                                style: GoogleFonts.sora(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          entry.status.toUpperCase(),
-                          style: GoogleFonts.sora(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _formatDate(entry.timestamp),
-                          style: GoogleFonts.sora(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                        if (entry.note != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            entry.note!,
-                            style: GoogleFonts.sora(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            )),
+                )),
         ],
       ),
     );
@@ -550,10 +563,11 @@ class LabOrderDetailScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
+                  color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.description, color: AppColors.primary, size: 24),
+                child: const Icon(Icons.description,
+                    color: AppColors.primary, size: 24),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -587,7 +601,8 @@ class LabOrderDetailScreen extends ConsumerWidget {
                 child: ElevatedButton.icon(
                   onPressed: () => _openPdf(order.labResultUrl!),
                   icon: const Icon(Icons.visibility, size: 18),
-                  label: Text('View Report', style: GoogleFonts.sora(fontSize: 13)),
+                  label: Text('View Report',
+                      style: GoogleFonts.sora(fontSize: 13)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -598,7 +613,8 @@ class LabOrderDetailScreen extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => _sharePdf(order.labResultUrl!, order.orderId),
+                  onPressed: () =>
+                      _sharePdf(order.labResultUrl!, order.orderId),
                   icon: const Icon(Icons.share, size: 18),
                   label: Text('Share', style: GoogleFonts.sora(fontSize: 13)),
                   style: OutlinedButton.styleFrom(
@@ -623,12 +639,14 @@ class LabOrderDetailScreen extends ConsumerWidget {
         icon: const Icon(Icons.add_circle_outline, color: AppColors.labPrimary),
         label: Text(
           'Book New Lab Tests',
-          style: GoogleFonts.sora(color: AppColors.labPrimary, fontWeight: FontWeight.w600),
+          style: GoogleFonts.sora(
+              color: AppColors.labPrimary, fontWeight: FontWeight.w600),
         ),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: AppColors.labPrimary),
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );
@@ -642,7 +660,9 @@ class LabOrderDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _sharePdf(String url, String orderId) async {
-    final shortId = orderId.length >= 8 ? orderId.substring(0, 8).toUpperCase() : orderId.toUpperCase();
+    final shortId = orderId.length >= 8
+        ? orderId.substring(0, 8).toUpperCase()
+        : orderId.toUpperCase();
     await Share.share(
       'Lab Report for Order #SA-LB-$shortId\n\nDownload: $url',
       subject: 'Lab Report - SA-LB-$shortId',

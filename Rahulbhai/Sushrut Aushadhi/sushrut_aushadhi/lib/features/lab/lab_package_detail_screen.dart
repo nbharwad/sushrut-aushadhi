@@ -23,7 +23,8 @@ class LabPackageDetailScreen extends ConsumerWidget {
           if (package == null) return _buildNotFound(context);
           return _buildContent(context, package);
         },
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.labPrimary)),
+        loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.labPrimary)),
         error: (e, _) => _buildError(context, e.toString()),
       ),
     );
@@ -40,7 +41,8 @@ class LabPackageDetailScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.search_off, size: 64, color: AppColors.textSecondary),
+            const Icon(Icons.search_off,
+                size: 64, color: AppColors.textSecondary),
             const SizedBox(height: 16),
             Text('Lab package not found', style: GoogleFonts.sora()),
             const SizedBox(height: 16),
@@ -127,8 +129,10 @@ class LabPackageDetailScreen extends ConsumerWidget {
         children: [
           IconButton(
             onPressed: () {
-              if (context.canPop()) context.pop();
-              else context.go('/home');
+              if (context.canPop())
+                context.pop();
+              else
+                context.go('/home');
             },
             icon: const Icon(Icons.arrow_back, color: Colors.white),
           ),
@@ -136,7 +140,10 @@ class LabPackageDetailScreen extends ConsumerWidget {
           Expanded(
             child: Text(
               package.name,
-              style: GoogleFonts.sora(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              style: GoogleFonts.sora(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -166,7 +173,8 @@ class LabPackageDetailScreen extends ConsumerWidget {
                   color: AppColors.labPrimaryLight,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.biotech, color: AppColors.labPrimary, size: 32),
+                child: const Icon(Icons.biotech,
+                    color: AppColors.labPrimary, size: 32),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -175,13 +183,15 @@ class LabPackageDetailScreen extends ConsumerWidget {
                   children: [
                     Text(
                       package.name,
-                      style: GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.sora(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     if (package.shortDescription.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         package.shortDescription,
-                        style: GoogleFonts.sora(fontSize: 13, color: AppColors.textSecondary),
+                        style: GoogleFonts.sora(
+                            fontSize: 13, color: AppColors.textSecondary),
                       ),
                     ],
                   ],
@@ -203,9 +213,10 @@ class LabPackageDetailScreen extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: AppColors.discountRed.withOpacity(0.12),
+                    color: AppColors.discountRed.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -260,7 +271,10 @@ class LabPackageDetailScreen extends ConsumerWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: GoogleFonts.sora(fontSize: 12, color: AppColors.labPrimary, fontWeight: FontWeight.w600),
+            style: GoogleFonts.sora(
+                fontSize: 12,
+                color: AppColors.labPrimary,
+                fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -280,28 +294,34 @@ class LabPackageDetailScreen extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.info_outline, color: Color(0xFFF57F17), size: 20),
+              const Icon(Icons.info_outline,
+                  color: Color(0xFFF57F17), size: 20),
               const SizedBox(width: 8),
               Text(
                 'Before Your Test',
-                style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFF57F17)),
+                style: GoogleFonts.sora(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFF57F17)),
               ),
             ],
           ),
           const SizedBox(height: 12),
           ...package.preparationSteps.map((step) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.check_circle_outline, size: 18, color: Color(0xFFF57F17)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(step, style: GoogleFonts.sora(fontSize: 13, height: 1.5)),
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.check_circle_outline,
+                        size: 18, color: Color(0xFFF57F17)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(step,
+                          style: GoogleFonts.sora(fontSize: 13, height: 1.5)),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          )),
+              )),
         ],
       ),
     );
@@ -324,30 +344,31 @@ class LabPackageDetailScreen extends ConsumerWidget {
               const SizedBox(width: 8),
               Text(
                 'Tests Included (${package.testCount})',
-                style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+                style:
+                    GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
           ),
           const SizedBox(height: 12),
           ...package.testNames.map((name) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.labPrimary,
-                    shape: BoxShape.circle,
-                  ),
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppColors.labPrimary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(name, style: GoogleFonts.sora(fontSize: 14)),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(name, style: GoogleFonts.sora(fontSize: 14)),
-                ),
-              ],
-            ),
-          )),
+              )),
         ],
       ),
     );
@@ -365,7 +386,8 @@ class LabPackageDetailScreen extends ConsumerWidget {
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          leading: const Icon(Icons.analytics_outlined, color: AppColors.labPrimary),
+          leading:
+              const Icon(Icons.analytics_outlined, color: AppColors.labPrimary),
           title: Text(
             "What's Measured (${package.parameters.length} parameters)",
             style: GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.bold),
@@ -374,14 +396,19 @@ class LabPackageDetailScreen extends ConsumerWidget {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: package.parameters.map((param) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.labPrimaryLight,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(param, style: GoogleFonts.sora(fontSize: 12, color: AppColors.labPrimary)),
-              )).toList(),
+              children: package.parameters
+                  .map((param) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppColors.labPrimaryLight,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(param,
+                            style: GoogleFonts.sora(
+                                fontSize: 12, color: AppColors.labPrimary)),
+                      ))
+                  .toList(),
             ),
           ],
         ),
@@ -399,7 +426,8 @@ class LabPackageDetailScreen extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          _infoRow(Icons.home, 'Home Collection', 'Phlebotomist visits your address'),
+          _infoRow(Icons.home, 'Home Collection',
+              'Phlebotomist visits your address'),
           const Divider(height: 24),
           _infoRow(Icons.timer, 'Report in', package.tatDisplay),
           const Divider(height: 24),
@@ -424,9 +452,12 @@ class LabPackageDetailScreen extends ConsumerWidget {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(label, style: GoogleFonts.sora(fontSize: 13, color: AppColors.textSecondary)),
+          child: Text(label,
+              style: GoogleFonts.sora(
+                  fontSize: 13, color: AppColors.textSecondary)),
         ),
-        Text(value, style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w600)),
+        Text(value,
+            style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w600)),
       ],
     );
   }
@@ -446,7 +477,7 @@ class _BookButton extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, -4),
           ),
@@ -469,11 +500,13 @@ class _BookButton extends StatelessWidget {
               backgroundColor: AppColors.labPrimary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
             child: Text(
               'Book This Package  \u20B9${package.price.toStringAsFixed(0)}',
-              style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+              style:
+                  GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
         ),
