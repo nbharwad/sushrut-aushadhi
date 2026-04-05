@@ -405,11 +405,17 @@ exports.validatePrescription = onDocumentCreated(
     
     const requiredFields = ['userId', 'userName', 'imageUrl'];
     const missingFields = requiredFields.filter(field => !prescriptionData[field]);
-    
+
     if (missingFields.length > 0) {
-      console.log(`Prescription ${prescriptionId} missing fields: ${missingFields.join(', ')}`);
+      console.error(`Prescription ${prescriptionId} missing required fields: ${missingFields.join(', ')} — rejecting`);
+      return event.data.ref.delete().then(() => {
+        return { status: 'rejected', reason: `missing_fields:${missingFields.join(',')}` };
+      }).catch(error => {
+        console.error(`Error deleting invalid prescription ${prescriptionId}:`, error);
+        return { status: 'error', error: error.message };
+      });
     }
-    
+
     console.log(`Prescription ${prescriptionId} validated successfully for user: ${authUid}`);
     return { status: 'valid', userId: authUid };
   }

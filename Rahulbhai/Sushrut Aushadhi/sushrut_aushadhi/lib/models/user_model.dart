@@ -10,6 +10,8 @@ class UserModel {
   final String address;
   final String pincode;
   final DeliveryAddress deliveryAddress;
+  /// Deprecated: kept for Firestore backward-compatibility only.
+  /// Use [role] == 'admin' for all role checks — never read isAdmin directly.
   final bool isAdmin;
   final String role;
   final String? fcmToken;
