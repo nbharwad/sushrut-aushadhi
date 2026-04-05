@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/lab_service.dart';
 import '../models/lab_order_model.dart';
+import '../models/lab_package_model.dart';
 import 'auth_provider.dart';
 import 'firebase_providers.dart';
 
@@ -45,4 +46,28 @@ final labTestsProvider = FutureProvider<List<LabTestModel>>((ref) {
 final todayLabSummaryProvider = FutureProvider<Map<String, dynamic>>((ref) {
   final labService = ref.watch(labServiceProvider);
   return labService.getTodayLabSummary();
+});
+
+// Lab Packages — user-facing (active only, real-time)
+final labPackagesProvider = StreamProvider<List<LabPackageModel>>((ref) {
+  final labService = ref.watch(labServiceProvider);
+  return labService.getLabPackages();
+});
+
+// Lab Packages — admin (all including inactive, real-time)
+final allLabPackagesProvider = StreamProvider<List<LabPackageModel>>((ref) {
+  final labService = ref.watch(labServiceProvider);
+  return labService.getAllLabPackages();
+});
+
+// Single package by ID — real-time
+final labPackageProvider = StreamProvider.family<LabPackageModel?, String>((ref, packageId) {
+  final labService = ref.watch(labServiceProvider);
+  return labService.getLabPackageStream(packageId);
+});
+
+// All individual tests as stream — for admin management screen
+final allLabTestsStreamProvider = StreamProvider<List<LabTestModel>>((ref) {
+  final labService = ref.watch(labServiceProvider);
+  return labService.getAllLabTestsStream();
 });

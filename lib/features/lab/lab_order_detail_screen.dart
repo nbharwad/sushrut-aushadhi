@@ -102,6 +102,11 @@ class LabOrderDetailScreen extends ConsumerWidget {
                   ],
                   const SizedBox(height: 16),
                   _buildOrderTimeline(order),
+                  if (order.status == LabOrderStatus.completed ||
+                      order.status == LabOrderStatus.cancelled) ...[
+                    const SizedBox(height: 16),
+                    _buildBookAgainButton(context),
+                  ],
                   const SizedBox(height: 40),
                 ],
               ),
@@ -117,7 +122,7 @@ class LabOrderDetailScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF0F6E56), Color(0xFF1D9E75)],
+          colors: [AppColors.labPrimary, AppColors.labSecondary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -125,7 +130,13 @@ class LabOrderDetailScreen extends ConsumerWidget {
       child: Row(
         children: [
           IconButton(
-            onPressed: () => context.pop(),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/lab/orders');
+              }
+            },
             icon: const Icon(Icons.arrow_back, color: Colors.white),
           ),
           const SizedBox(width: 8),
@@ -166,7 +177,7 @@ class LabOrderDetailScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'SA-LB-${order.orderId.substring(0, 4).toUpperCase()}',
+                  'SA-LB-${order.orderId.substring(0, order.orderId.length >= 4 ? 4 : order.orderId.length).toUpperCase()}',
                   style: GoogleFonts.sora(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -600,6 +611,25 @@ class LabOrderDetailScreen extends ConsumerWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBookAgainButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () => context.push('/lab/book'),
+        icon: const Icon(Icons.add_circle_outline, color: AppColors.labPrimary),
+        label: Text(
+          'Book New Lab Tests',
+          style: GoogleFonts.sora(color: AppColors.labPrimary, fontWeight: FontWeight.w600),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: AppColors.labPrimary),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       ),
     );
   }
