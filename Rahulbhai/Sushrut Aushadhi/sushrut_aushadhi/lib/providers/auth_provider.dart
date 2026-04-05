@@ -45,7 +45,7 @@ final isAdminFromClaimsProvider = FutureProvider<bool>((ref) async {
   final user = authState.valueOrNull;
   if (user == null) return false;
 
-  final idTokenResult = await user.getIdTokenResult(false);
+  final idTokenResult = await user.getIdTokenResult(true);
   final role = idTokenResult.claims?['role'] as String?;
   return role == 'admin';
 });

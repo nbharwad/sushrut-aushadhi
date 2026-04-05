@@ -148,10 +148,11 @@ class FirestoreService {
     });
   }
 
-  Stream<List<OrderModel>> getAllOrders() {
+  Stream<List<OrderModel>> getAllOrders({int limit = 200}) {
     return _db
         .collection('orders')
         .orderBy('createdAt', descending: true)
+        .limit(limit)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs
@@ -182,11 +183,12 @@ class FirestoreService {
     );
   }
 
-  Stream<List<OrderModel>> getOrdersByStatus(String status) {
+  Stream<List<OrderModel>> getOrdersByStatus(String status, {int limit = 100}) {
     return _db
         .collection('orders')
         .where('status', isEqualTo: status)
         .orderBy('createdAt', descending: true)
+        .limit(limit)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs
@@ -203,11 +205,26 @@ class FirestoreService {
     return null;
   }
 
-  Future<void> updateOrderStatus(String orderId, String status) async {
-    await _db.collection('orders').doc(orderId).update({
+  Future<void> updateOrderStatus(
+    String orderId,
+    String status, {
+    String updatedBy = 'system',
+  }) async {
+    final updateData = <String, dynamic>{
       'status': status,
-      'updatedAt': Timestamp.fromDate(DateTime.now()),
-    });
+      'updatedAt': FieldValue.serverTimestamp(),
+      'statusHistory': FieldValue.arrayUnion([
+        {
+          'status': status,
+          'timestamp': Timestamp.fromDate(DateTime.now()),
+          'updatedBy': updatedBy,
+        }
+      ]),
+    };
+    if (status == 'delivered') {
+      updateData['deliveredAt'] = FieldValue.serverTimestamp();
+    }
+    await _db.collection('orders').doc(orderId).update(updateData);
   }
 
   Future<UserModel?> getUser(String uid) async {

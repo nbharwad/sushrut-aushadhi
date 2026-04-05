@@ -29,8 +29,11 @@ enum OrderStatus {
 
   static OrderStatus fromString(String status) {
     return OrderStatus.values.firstWhere(
-      (e) => e.name == status.toLowerCase(),
-      orElse: () => OrderStatus.pending,
+      (e) => e.name == status,
+      orElse: () => OrderStatus.values.firstWhere(
+        (e) => e.name == status.toLowerCase(),
+        orElse: () => OrderStatus.pending,
+      ),
     );
   }
 }

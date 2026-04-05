@@ -573,7 +573,7 @@ Text(
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
       child: InkWell(
-        onTap: () => context.push('/prescription'),
+        onTap: () => context.push('/prescription?type=medicine'),
         borderRadius: BorderRadius.circular(20),
         child: CustomPaint(
           painter: _DashedBorderPainter(),

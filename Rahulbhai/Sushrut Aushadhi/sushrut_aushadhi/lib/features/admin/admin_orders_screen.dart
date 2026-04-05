@@ -7,15 +7,16 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
 import '../../services/remote_config_service.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/error_state_widget.dart';
 import '../../models/order_model.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../services/whatsapp_service.dart';
+
+// Responsive breakpoint — 2-column card grid above this width
+const _kDesktopBreakpoint = 900.0;
 
 class AdminOrdersScreen extends ConsumerStatefulWidget {
   const AdminOrdersScreen({super.key});
@@ -25,27 +26,24 @@ class AdminOrdersScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+    with AutomaticKeepAliveClientMixin {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   String _searchQuery = '';
   String _sortOrder = 'newest';
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 6, vsync: this);
-  }
+  String _selectedStatus = 'all';
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
+  @override
+  bool get wantKeepAlive => true;
+
   Future<void> _onRefresh() async {
-    ref.invalidate(allOrdersProvider);
     await Future<void>.delayed(const Duration(milliseconds: 400));
   }
 
@@ -59,12 +57,6 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     setState(() {
       _sortOrder = sortOrder;
     });
-  }
-
-  void _jumpToTab(int tabIndex) {
-    if (tabIndex >= 0 && tabIndex < 6) {
-      _tabController.animateTo(tabIndex);
-    }
   }
 
   List<OrderModel> _filterAndSortOrders(List<OrderModel> orders) {
@@ -95,446 +87,266 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isAdminAsync = ref.watch(isAdminFromClaimsProvider);
-    final isAdmin = isAdminAsync.valueOrNull ?? false;
+    super.build(context);
     final ordersAsync = ref.watch(allOrdersProvider);
     final stats = ordersAsync.maybeWhen(
       data: _AdminOrderStats.fromOrders,
       orElse: _AdminOrderStats.empty,
     );
 
-    if (!isAdmin) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.primary,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => context.go('/home'),
+    return RefreshIndicator(
+      color: Colors.white,
+      backgroundColor: AppColors.primary,
+      onRefresh: _onRefresh,
+      child: CustomScrollView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          // ── M3 Collapsing App Bar ──────────────────────────────────────
+          _buildSliverAppBar(stats),
+
+          // ── Pinned: Search + Sort + Filter chips ──────────────────────
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _StickySearchDelegate(
+              searchController: _searchController,
+              sortOrder: _sortOrder,
+              selectedStatus: _selectedStatus,
+              stats: stats,
+              onSearchChanged: _onSearchChanged,
+              onSortChanged: _onSortChanged,
+              onStatusSelected: (s) => setState(() => _selectedStatus = s),
+            ),
           ),
-          title: Text(
-            'Access Denied',
-            style: GoogleFonts.sora(color: Colors.white),
-          ),
-        ),
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+
+          // ── Orders list ───────────────────────────────────────────────
+          _buildOrdersSliver(ordersAsync),
+        ],
+      ),
+    );
+  }
+
+  // ── Sliver App Bar ─────────────────────────────────────────────────────────
+
+  SliverAppBar _buildSliverAppBar(_AdminOrderStats stats) {
+    return SliverAppBar(
+      expandedHeight: 148,
+      collapsedHeight: 56,
+      pinned: true,
+      stretch: true,
+      backgroundColor: AppColors.primary,
+      elevation: 0,
+      automaticallyImplyLeading: false,
+      flexibleSpace: LayoutBuilder(
+        builder: (context, constraints) {
+          // How collapsed are we? 0 = fully expanded, 1 = fully collapsed
+          final expandedHeight = 148.0 + MediaQuery.of(context).padding.top;
+          final collapsedHeight = 56.0 + MediaQuery.of(context).padding.top;
+          final t = ((expandedHeight - constraints.maxHeight) /
+                  (expandedHeight - collapsedHeight))
+              .clamp(0.0, 1.0);
+
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0A5240), Color(0xFF1D9E75)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Stack(
                 children: [
-                  const Icon(Icons.lock_outline, size: 64, color: AppColors.primary),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Admin Access Required',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.sora(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  // Expanded content — fades out as collapsed
+                  Opacity(
+                    opacity: (1 - t * 2).clamp(0.0, 1.0),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Medicine Orders',
+                                  style: GoogleFonts.sora(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              _buildHeaderActions(),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          _buildInlineStats(stats),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'You do not have permission to view this page.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.sora(color: AppColors.textSecondary),
+                  // Collapsed title — fades in
+                  Opacity(
+                    opacity: ((t - 0.5) * 2).clamp(0.0, 1.0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Medicine Orders',
+                                style: GoogleFonts.sora(
+                                  color: Colors.white,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            _buildHeaderActions(),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-        ),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _buildCustomAppBar(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-              child: _buildStatsGrid(stats),
-            ),
-            _buildLabNavRow(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _buildSearchAndSort(),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: _buildTabBar(stats),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildOrderList(ordersAsync, 'pending'),
-                  _buildOrderList(ordersAsync, 'confirmed'),
-                  _buildOrderList(ordersAsync, 'preparing'),
-                  _buildOrderList(ordersAsync, 'outForDelivery'),
-                  _buildOrderList(ordersAsync, 'delivered'),
-                  _buildOrderList(ordersAsync, 'all'),
-                ],
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildCustomAppBar() {
-    return Container(
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top > 0 ? 8 : 16,
-        left: 16,
-        right: 16,
-        bottom: 12,
-      ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0F6E56), Color(0xFF1D9E75)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => context.go('/profile'),
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Admin Orders',
-                  style: GoogleFonts.sora(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Sushrut Aushadhi store operations',
-                  style: GoogleFonts.sora(
-                    color: Colors.white.withOpacity(0.75),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.14),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-              onPressed: _onRefresh,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsGrid(_AdminOrderStats stats) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final columns = width >= 900
-            ? 4
-            : width >= 600
-                ? 2
-                : 2;
-        final spacing = 12.0;
-        final itemWidth = (width - (spacing * (columns - 1))) / columns;
-
-        final cards = [
-          _AdminStatCardData(
-            label: 'Pending',
-            value: '${stats.pendingCount}',
-            color: const Color(0xFFFF9800),
-            icon: Icons.pending_actions_rounded,
-            tabIndex: 0,
-          ),
-          _AdminStatCardData(
-            label: 'Confirmed',
-            value: '${stats.confirmedCount}',
-            color: const Color(0xFF185FA5),
-            icon: Icons.inventory_2_rounded,
-            tabIndex: 1,
-          ),
-          _AdminStatCardData(
-            label: 'Delivered Today',
-            value: '${stats.deliveredTodayCount}',
-            color: AppColors.primary,
-            icon: Icons.local_shipping_rounded,
-            tabIndex: 4,
-          ),
-          _AdminStatCardData(
-            label: 'Today Revenue',
-            value: 'Rs ${stats.todayRevenue.toStringAsFixed(0)}',
-            color: const Color(0xFF0E8E62),
-            icon: Icons.payments_rounded,
-            tabIndex: null,
-          ),
-        ];
-
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: cards
-              .map((card) => SizedBox(width: itemWidth, child: _buildStatCard(card)))
-              .toList(),
-        );
-      },
-    );
-  }
-
-  Widget _buildStatCard(_AdminStatCardData card) {
-    final isClickable = card.tabIndex != null;
-    final cardWidget = Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8ECE7)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: card.color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(card.icon, color: card.color),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  card.value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.sora(
-                    color: card.color,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  card.label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.sora(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (!isClickable) return cardWidget;
-
-    return InkWell(
-      onTap: () => _jumpToTab(card.tabIndex!),
-      borderRadius: BorderRadius.circular(16),
-      child: cardWidget,
-    );
-  }
-
-  Widget _buildLabNavRow() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-      child: Row(
-        children: [
-          _navChip('Lab Orders', Icons.science_outlined, () => context.push('/admin/lab-orders'), const Color(0xFF0277BD)),
-          const SizedBox(width: 8),
-          _navChip('Lab Packages', Icons.inventory_2_outlined, () => context.push('/admin/lab-packages'), const Color(0xFF6A1B9A)),
-          const SizedBox(width: 8),
-          _navChip('Manage Tests', Icons.biotech_outlined, () => context.push('/admin/lab-tests'), const Color(0xFF00838F)),
-          const SizedBox(width: 8),
-          _navChip('Prescriptions', Icons.description_outlined, () => context.push('/admin/prescriptions'), const Color(0xFFE65100)),
-        ],
-      ),
-    );
-  }
-
-  Widget _navChip(String label, IconData icon, VoidCallback onTap, Color color) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w600, color: color),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchAndSort() {
+  Widget _buildHeaderActions() {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
-          child: Container(
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE8ECE7)),
-            ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: 'Search orders...',
-                hintStyle: GoogleFonts.sora(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
+        // Prescriptions shortcut
+        _GlassButton(
+          onTap: () => context.push('/admin/prescriptions'),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.description_outlined, size: 15, color: Colors.white),
+              const SizedBox(width: 5),
+              Text(
+                'Rx',
+                style: GoogleFonts.sora(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                 ),
-                prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               ),
-              style: GoogleFonts.sora(fontSize: 13),
-            ),
+            ],
           ),
         ),
-        const SizedBox(width: 12),
-        Container(
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE8ECE7)),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _sortOrder,
-              icon: const Icon(Icons.sort, color: AppColors.textSecondary, size: 20),
-              style: GoogleFonts.sora(fontSize: 13, color: AppColors.textPrimary),
-              items: const [
-                DropdownMenuItem(value: 'newest', child: Text('Newest')),
-                DropdownMenuItem(value: 'oldest', child: Text('Oldest')),
-                DropdownMenuItem(value: 'amount_high', child: Text('Amount ↑')),
-                DropdownMenuItem(value: 'amount_low', child: Text('Amount ↓')),
-              ],
-              onChanged: (value) {
-                if (value != null) _onSortChanged(value);
-              },
-            ),
-          ),
+        const SizedBox(width: 8),
+        // Refresh
+        _GlassButton(
+          onTap: _onRefresh,
+          child: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
         ),
       ],
     );
   }
 
-  Widget _buildTabBar(_AdminOrderStats stats) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+  /// Compact inline stats strip shown in expanded app bar
+  Widget _buildInlineStats(_AdminOrderStats stats) {
+    final items = [
+      (label: '${stats.pendingCount}', sub: 'Pending', color: AppColors.statusPending),
+      (label: '${stats.confirmedCount}', sub: 'Confirmed', color: AppColors.statusConfirmed),
+      (label: '${stats.deliveredTodayCount}', sub: 'Delivered Today', color: AppColors.statusDelivered),
+      (
+        label: 'Rs ${stats.todayRevenue < 1000 ? stats.todayRevenue.toStringAsFixed(0) : '${(stats.todayRevenue / 1000).toStringAsFixed(1)}k'}',
+        sub: "Today's Rev",
+        color: const Color(0xFF80CBC4),
       ),
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        labelColor: AppColors.primary,
-        unselectedLabelColor: AppColors.textSecondary,
-        indicatorColor: AppColors.primary,
-        indicatorWeight: 3,
-        labelStyle: GoogleFonts.sora(fontWeight: FontWeight.w700),
-        unselectedLabelStyle: GoogleFonts.sora(fontWeight: FontWeight.w600),
-        tabs: [
-          _AdminCountTab(label: 'Pending', count: stats.pendingCount),
-          _AdminCountTab(label: 'Confirmed', count: stats.confirmedCount),
-          _AdminCountTab(label: 'Preparing', count: stats.preparingCount),
-          _AdminCountTab(label: 'Out for Delivery', count: stats.outForDeliveryCount),
-          _AdminCountTab(label: 'Delivered', count: stats.deliveredCount),
-          _AdminCountTab(label: 'All', count: stats.totalCount),
-        ],
-      ),
+    ];
+
+    return Row(
+      children: items
+          .map(
+            (item) => Expanded(
+              child: _StatPill(
+                value: item.label,
+                label: item.sub,
+                valueColor: item.color,
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 
-  Widget _buildOrderList(AsyncValue<List<OrderModel>> ordersAsync, String status) {
+  // ── Orders Sliver ──────────────────────────────────────────────────────────
+
+  Widget _buildOrdersSliver(AsyncValue<List<OrderModel>> ordersAsync) {
     return ordersAsync.when(
-      data: (orders) {
-        var filteredOrders = status == 'all'
-            ? orders
-            : orders.where((order) => order.status.name == status).toList();
-        
-        filteredOrders = _filterAndSortOrders(filteredOrders);
-
-        if (filteredOrders.isEmpty) {
-          return _buildEmptyState(status);
-        }
-
-        return RefreshIndicator(
-          color: Colors.white,
-          backgroundColor: const Color(0xFF0F6E56),
-          onRefresh: _onRefresh,
-          child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            itemCount: filteredOrders.length,
-            itemBuilder: (context, index) => _buildOrderCard(filteredOrders[index]),
-          ),
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: ErrorStateWidget(
-            message: 'Could not load orders.\n$error',
-            onRetry: _onRefresh,
+      loading: () => const SliverFillRemaining(
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      ),
+      error: (error, _) => SliverFillRemaining(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ErrorStateWidget(
+              message: 'Could not load orders.\n$error',
+              onRetry: _onRefresh,
+            ),
           ),
         ),
       ),
+      data: (orders) {
+        var filteredOrders = _selectedStatus == 'all'
+            ? orders
+            : orders.where((o) => o.status.name == _selectedStatus).toList();
+        filteredOrders = _filterAndSortOrders(filteredOrders);
+
+        if (filteredOrders.isEmpty) {
+          return SliverFillRemaining(
+            child: _buildEmptyState(_selectedStatus),
+          );
+        }
+
+        return SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          sliver: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = MediaQuery.of(context).size.width;
+              if (width >= _kDesktopBreakpoint) {
+                // 2-column grid for large screens
+                return SliverGrid.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.05,
+                  ),
+                  itemCount: filteredOrders.length,
+                  itemBuilder: (context, index) =>
+                      _buildOrderCard(filteredOrders[index]),
+                );
+              }
+              // Single column for phone / small tablet
+              return SliverList.separated(
+                itemCount: filteredOrders.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) =>
+                    _buildOrderCard(filteredOrders[index]),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
   Widget _buildEmptyState(String status) {
-    final widget = switch (status) {
+    return switch (status) {
       'pending' => const EmptyStateWidget(
           emoji: '⏳',
           title: 'No Pending Orders',
@@ -546,7 +358,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
           subtitle: 'There are no confirmed orders to prepare.',
         ),
       'delivered' => const EmptyStateWidget(
-          emoji: '🚚',
+          emoji: '✅',
           title: 'No Delivered Orders',
           subtitle: 'There are no delivered orders yet.',
         ),
@@ -556,30 +368,36 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
           subtitle: 'There are no orders yet.',
         ),
     };
-
-    return RefreshIndicator(
-      color: Colors.white,
-      backgroundColor: const Color(0xFF0F6E56),
-      onRefresh: _onRefresh,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        children: [SizedBox(height: MediaQuery.of(context).size.height * 0.45, child: widget)],
-      ),
-    );
   }
 
+  // ── Order Card ─────────────────────────────────────────────────────────────
+
   Widget _buildOrderCard(OrderModel order) {
+    final statusColor = Helpers.getStatusColor(order.status);
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE8ECE7)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Thin colored top border per status
+          Container(
+            height: 3,
+            decoration: BoxDecoration(
+              color: statusColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+          ),
           _buildCardHeader(order),
           _buildCustomerSection(order),
           _buildItemsList(order),
@@ -593,83 +411,51 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   }
 
   Widget _buildCardHeader(OrderModel order) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFEFF3EF))),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final narrow = constraints.maxWidth < 360;
-          final statusChip = Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Helpers.getStatusColor(order.status).withOpacity(0.12),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              order.status.displayName,
-              style: GoogleFonts.sora(
-                color: Helpers.getStatusColor(order.status),
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
-              ),
-            ),
-          );
-
-          if (narrow) {
-            return Column(
+    final statusColor = Helpers.getStatusColor(order.status);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'SA-${order.orderId.substring(0, 4).toUpperCase()}',
                   style: GoogleFonts.sora(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 15,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _getTimeAgo(order.createdAt),
-                        style: GoogleFonts.sora(
-                          color: AppColors.textSecondary,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    statusChip,
-                  ],
+                const SizedBox(height: 2),
+                Text(
+                  _getTimeAgo(order.createdAt),
+                  style: GoogleFonts.sora(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                  ),
                 ),
               ],
-            );
-          }
-
-          return Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'SA-${order.orderId.substring(0, 4).toUpperCase()}',
-                  style: GoogleFonts.sora(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+            ),
+            child: Text(
+              order.status.displayName,
+              style: GoogleFonts.sora(
+                color: statusColor,
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
               ),
-              Text(
-                _getTimeAgo(order.createdAt),
-                style: GoogleFonts.sora(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
-                ),
-              ),
-              const SizedBox(width: 12),
-              statusChip,
-            ],
-          );
-        },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -678,79 +464,78 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     final initials = order.userName.isNotEmpty
         ? order.userName
             .split(' ')
-            .map((segment) => segment.isNotEmpty ? segment[0] : '')
+            .map((s) => s.isNotEmpty ? s[0] : '')
             .take(2)
             .join()
             .toUpperCase()
         : 'CU';
 
+    final actionButtons = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _ActionIconButton(
+          icon: Icons.call_rounded,
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          onTap: () => _launchUrl('tel:${order.userPhone}'),
+        ),
+        _ActionIconButton(
+          icon: Icons.chat_bubble_outline_rounded,
+          backgroundColor: const Color(0xFFE8F5E9),
+          foregroundColor: const Color(0xFF1B8E3E),
+          onTap: () async {
+            final itemNames = order.items.map((item) => item.medicineName).toList();
+            try {
+              await WhatsAppService.sendOrderUpdate(
+                customerPhone: order.userPhone,
+                orderId: order.orderId,
+                customerName: order.userName,
+                status: order.status.name,
+                totalAmount: order.totalAmount,
+                itemNames: itemNames,
+                storePhone: RemoteConfigService.storePhone,
+              );
+            } catch (_) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('WhatsApp is not available on this device'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          },
+        ),
+        if (order.prescriptionUrl != null && order.prescriptionUrl!.isNotEmpty)
+          _ActionIconButton(
+            icon: Icons.description_outlined,
+            backgroundColor: const Color(0xFFF3E5F5),
+            foregroundColor: const Color(0xFF7B1FA2),
+            onTap: () => _showPrescriptionViewer(order.prescriptionUrl!),
+          ),
+      ],
+    );
+
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFEFF3EF))),
+        border: Border(bottom: BorderSide(color: Color(0xFFF0F4F0))),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final actionButtons = Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _ActionIconButton(
-                icon: Icons.call_rounded,
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                onTap: () => _launchUrl('tel:${order.userPhone}'),
-              ),
-              _ActionIconButton(
-                icon: Icons.chat_bubble_outline_rounded,
-                backgroundColor: const Color(0xFFE8F5E9),
-                foregroundColor: const Color(0xFF1B8E3E),
-                onTap: () async {
-                  final itemNames =
-                      order.items.map((item) => item.medicineName).toList();
-                  try {
-                    await WhatsAppService.sendOrderUpdate(
-                      customerPhone: order.userPhone,
-                      orderId: order.orderId,
-                      customerName: order.userName,
-                      status: order.status.name,
-                      totalAmount: order.totalAmount,
-                      itemNames: itemNames,
-                      storePhone: RemoteConfigService.storePhone,
-                    );
-                  } catch (_) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('WhatsApp is not available on this device'),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
-                  }
-                },
-              ),
-              if (order.prescriptionUrl != null && order.prescriptionUrl!.isNotEmpty)
-                _ActionIconButton(
-                  icon: Icons.description_outlined,
-                  backgroundColor: const Color(0xFFF3E5F5),
-                  foregroundColor: const Color(0xFF7B1FA2),
-                  onTap: () => _showPrescriptionViewer(order.prescriptionUrl!),
-                ),
-            ],
-          );
-
-          final customerDetails = Expanded(
+          final customerInfo = Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   order.userName.isNotEmpty ? order.userName : 'Customer',
                   style: GoogleFonts.sora(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   order.userPhone,
                   style: GoogleFonts.sora(
@@ -759,15 +544,24 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
                   ),
                 ),
                 if (!order.deliveryAddress.isEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    order.deliveryAddress.toDisplayString(),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.sora(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
-                    ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined,
+                          size: 12, color: AppColors.textSecondary),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          order.deliveryAddress.toDisplayString(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.sora(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ],
@@ -793,11 +587,11 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    customerDetails,
+                    const SizedBox(width: 10),
+                    customerInfo,
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 actionButtons,
               ],
             );
@@ -818,9 +612,9 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              customerDetails,
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
+              customerInfo,
+              const SizedBox(width: 8),
               Flexible(child: Align(alignment: Alignment.topRight, child: actionButtons)),
             ],
           );
@@ -834,29 +628,43 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     final remainingCount = order.items.length - displayItems.length;
 
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${order.itemCount} item${order.itemCount == 1 ? '' : 's'}',
-            style: GoogleFonts.sora(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 3,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${order.itemCount} item${order.itemCount == 1 ? '' : 's'}',
+                style: GoogleFonts.sora(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           ...displayItems.map(
             (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.only(bottom: 5),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 6,
-                    height: 6,
-                    margin: const EdgeInsets.only(top: 6),
+                    width: 5,
+                    height: 5,
+                    margin: const EdgeInsets.only(top: 7),
                     decoration: const BoxDecoration(
                       color: AppColors.primary,
                       shape: BoxShape.circle,
@@ -865,8 +673,15 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${item.medicineName} x ${item.quantity}',
-                      style: GoogleFonts.sora(fontSize: 12, height: 1.35),
+                      '${item.medicineName} × ${item.quantity}',
+                      style: GoogleFonts.sora(fontSize: 12, height: 1.4),
+                    ),
+                  ),
+                  Text(
+                    'Rs ${item.subtotal.toStringAsFixed(0)}',
+                    style: GoogleFonts.sora(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -874,12 +689,15 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
             ),
           ),
           if (remainingCount > 0)
-            Text(
-              '+$remainingCount more items',
-              style: GoogleFonts.sora(
-                color: AppColors.textSecondary,
-                fontSize: 11,
-                fontStyle: FontStyle.italic,
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                '+$remainingCount more item${remainingCount == 1 ? '' : 's'}',
+                style: GoogleFonts.sora(
+                  color: AppColors.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
         ],
@@ -891,47 +709,39 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     final nextStatuses = _getNextStatuses(order.status);
     if (nextStatuses.isEmpty) return const SizedBox.shrink();
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: Color(0xFFF0F4F0)),
+          bottom: BorderSide(color: Color(0xFFF0F4F0)),
+        ),
+      ),
+      child: Row(
         children: [
           Text(
-            'UPDATE STATUS',
+            'Move to:',
             style: GoogleFonts.sora(
               color: AppColors.textSecondary,
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
-              letterSpacing: 1,
             ),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: nextStatuses
-                .map(
-                  (status) => InkWell(
-                    borderRadius: BorderRadius.circular(999),
-                    onTap: () => _updateOrderStatus(order.orderId, status),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        status.displayName,
-                        style: GoogleFonts.sora(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: nextStatuses
+                  .map(
+                    (status) => _StatusChipButton(
+                      label: status.displayName,
+                      color: Helpers.getStatusColor(status),
+                      onTap: () => _updateOrderStatus(order.orderId, status),
                     ),
-                  ),
-                )
-                .toList(),
+                  )
+                  .toList(),
+            ),
           ),
         ],
       ),
@@ -939,34 +749,11 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   }
 
   Widget _buildCardFooter(OrderModel order) {
-    final actionButtons = <Widget>[
-      if (order.status != OrderStatus.cancelled &&
-          order.status != OrderStatus.delivered)
-        OutlinedButton(
-          onPressed: () => _showRejectConfirmDialog(order.orderId),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.error,
-            side: const BorderSide(color: AppColors.error),
-          ),
-          child: Text('Reject', style: GoogleFonts.sora(fontSize: 12)),
-        ),
-      if (order.status != OrderStatus.cancelled &&
-          order.status != OrderStatus.delivered)
-        ElevatedButton(
-          onPressed: () => _showConfirmDialog(order),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-          ),
-          child: Text(
-            order.status == OrderStatus.pending ? 'Confirm' : 'Update',
-            style: GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.w600),
-          ),
-        ),
-    ];
+    final canAct = order.status != OrderStatus.cancelled &&
+        order.status != OrderStatus.delivered;
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final totalBlock = Column(
@@ -974,50 +761,85 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Total: Rs ${order.totalAmount.toStringAsFixed(0)}',
+                'Rs ${order.totalAmount.toStringAsFixed(0)}',
                 style: GoogleFonts.sora(
                   fontWeight: FontWeight.bold,
-                  fontSize: 15,
+                  fontSize: 16,
+                  color: AppColors.primary,
                 ),
               ),
               if (order.prescriptionUrl != null && order.prescriptionUrl!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    'Prescription attached',
-                    style: GoogleFonts.sora(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
+                Text(
+                  '📎 Prescription attached',
+                  style: GoogleFonts.sora(
+                    fontSize: 10,
+                    color: const Color(0xFF7B1FA2),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
             ],
           );
 
-          if (constraints.maxWidth < 420) {
+          if (!canAct) return totalBlock;
+
+          final actions = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              OutlinedButton(
+                onPressed: () => _showRejectConfirmDialog(order.orderId),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: BorderSide(color: AppColors.error.withValues(alpha: 0.6)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text('Reject', style: GoogleFonts.sora(fontSize: 12)),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () => _showConfirmDialog(order),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  order.status == OrderStatus.pending ? 'Confirm' : 'Update',
+                  style: GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          );
+
+          if (constraints.maxWidth < 380) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                totalBlock,
-                if (actionButtons.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Wrap(spacing: 8, runSpacing: 8, children: actionButtons),
-                ],
-              ],
+              children: [totalBlock, const SizedBox(height: 10), actions],
             );
           }
 
           return Row(
             children: [
               Expanded(child: totalBlock),
-              if (actionButtons.isNotEmpty)
-                Wrap(spacing: 8, runSpacing: 8, children: actionButtons),
+              actions,
             ],
           );
         },
       ),
     );
   }
+
+  // ── Status logic ───────────────────────────────────────────────────────────
 
   List<OrderStatus> _getNextStatuses(OrderStatus current) {
     switch (current) {
@@ -1035,35 +857,44 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     }
   }
 
-  Future<void> _updateOrderStatus(String orderId, OrderStatus newStatus, {String? updatedBy}) async {
+  Future<void> _updateOrderStatus(String orderId, OrderStatus newStatus,
+      {String? updatedBy}) async {
     try {
-      final orderDoc = await FirebaseFirestore.instance.collection('orders').doc(orderId).get();
+      final orderDoc =
+          await FirebaseFirestore.instance.collection('orders').doc(orderId).get();
       if (!orderDoc.exists) return;
-      
+
       final orderData = orderDoc.data()!;
       final currentStatus = orderData['status'] ?? 'pending';
       final userId = orderData['userId'] ?? '';
-      
-      final existingHistory = (orderData['statusHistory'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [];
+
+      final existingHistory =
+          (orderData['statusHistory'] as List?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          [];
       existingHistory.add({
         'status': newStatus.name,
         'timestamp': FieldValue.serverTimestamp(),
         'updatedBy': updatedBy ?? 'admin',
         'role': 'admin',
       });
-      
+
       final updateData = <String, dynamic>{
         'status': newStatus.name,
         'updatedAt': FieldValue.serverTimestamp(),
         'statusHistory': existingHistory,
       };
-      
+
       if (newStatus == OrderStatus.delivered) {
         updateData['deliveredAt'] = FieldValue.serverTimestamp();
       }
-      
-      await FirebaseFirestore.instance.collection('orders').doc(orderId).update(updateData);
-      
+
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(orderId)
+          .update(updateData);
+
       if (userId.isNotEmpty && currentStatus != newStatus.name) {
         await FirebaseFirestore.instance.collection('notifications').add({
           'userId': userId,
@@ -1103,7 +934,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(
-          'Confirm Status',
+          'Update Status',
           style: GoogleFonts.sora(fontWeight: FontWeight.bold),
         ),
         content: Column(
@@ -1111,6 +942,10 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
           children: nextStatuses
               .map(
                 (status) => ListTile(
+                  leading: CircleAvatar(
+                    radius: 10,
+                    backgroundColor: Helpers.getStatusColor(status),
+                  ),
                   title: Text(status.displayName, style: GoogleFonts.sora()),
                   onTap: () {
                     Navigator.of(dialogContext).pop();
@@ -1201,54 +1036,334 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   }
 
   String _getTimeAgo(DateTime dateTime) {
-    final difference = DateTime.now().difference(dateTime);
-    if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    }
-    if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    }
-    return '${difference.inDays}d ago';
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'Yesterday';
+    return '${diff.inDays}d ago';
   }
 }
 
-class _AdminCountTab extends StatelessWidget {
-  const _AdminCountTab({required this.label, required this.count});
+// ── Sticky Search + Filter Delegate ─────────────────────────────────────────
 
-  final String label;
-  final int count;
+class _StickySearchDelegate extends SliverPersistentHeaderDelegate {
+  const _StickySearchDelegate({
+    required this.searchController,
+    required this.sortOrder,
+    required this.selectedStatus,
+    required this.stats,
+    required this.onSearchChanged,
+    required this.onSortChanged,
+    required this.onStatusSelected,
+  });
+
+  final TextEditingController searchController;
+  final String sortOrder;
+  final String selectedStatus;
+  final _AdminOrderStats stats;
+  final ValueChanged<String> onSearchChanged;
+  final ValueChanged<String> onSortChanged;
+  final ValueChanged<String> onStatusSelected;
+
+  static const double _height = 100;
 
   @override
-  Widget build(BuildContext context) {
-    return Tab(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+  double get minExtent => _height;
+  @override
+  double get maxExtent => _height;
+
+  @override
+  bool shouldRebuild(_StickySearchDelegate old) =>
+      old.sortOrder != sortOrder ||
+      old.selectedStatus != selectedStatus ||
+      old.stats != stats;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final chips = [
+      (status: 'all', label: 'All', count: stats.totalCount, color: AppColors.primary),
+      (status: 'pending', label: 'Pending', count: stats.pendingCount, color: AppColors.statusPending),
+      (status: 'confirmed', label: 'Confirmed', count: stats.confirmedCount, color: AppColors.statusConfirmed),
+      (status: 'preparing', label: 'Preparing', count: stats.preparingCount, color: AppColors.statusPreparing),
+      (status: 'outForDelivery', label: 'Out for Delivery', count: stats.outForDeliveryCount, color: AppColors.statusOutForDelivery),
+      (status: 'delivered', label: 'Delivered', count: stats.deliveredCount, color: AppColors.statusDelivered),
+    ];
+
+    return Material(
+      color: AppColors.background,
+      elevation: overlapsContent ? 2 : 0,
+      shadowColor: Colors.black12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label),
-          if (count > 0) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.error,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                '$count',
-                style: GoogleFonts.sora(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+          // Search + Sort row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8E2)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: searchController,
+                      onChanged: onSearchChanged,
+                      decoration: InputDecoration(
+                        hintText: 'Search by name, ID or phone…',
+                        hintStyle: GoogleFonts.sora(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: AppColors.textSecondary,
+                          size: 18,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                      ),
+                      style: GoogleFonts.sora(fontSize: 13),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Container(
+                  height: 42,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8E2)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: sortOrder,
+                      icon: const Icon(Icons.unfold_more_rounded,
+                          color: AppColors.textSecondary, size: 18),
+                      style: GoogleFonts.sora(
+                          fontSize: 12, color: AppColors.textPrimary),
+                      items: const [
+                        DropdownMenuItem(value: 'newest', child: Text('Newest')),
+                        DropdownMenuItem(value: 'oldest', child: Text('Oldest')),
+                        DropdownMenuItem(value: 'amount_high', child: Text('Rs ↑')),
+                        DropdownMenuItem(value: 'amount_low', child: Text('Rs ↓')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) onSortChanged(v);
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
+
+          // Filter chips
+          SizedBox(
+            height: 36,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: chips.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 7),
+              itemBuilder: (context, i) {
+                final c = chips[i];
+                final isSelected = selectedStatus == c.status;
+                return GestureDetector(
+                  onTap: () => onStatusSelected(c.status),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeInOut,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isSelected ? c.color : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? c.color
+                            : const Color(0xFFDDE3DD),
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: c.color.withValues(alpha: 0.25),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              )
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          c.label,
+                          style: GoogleFonts.sora(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                          ),
+                        ),
+                        if (c.count > 0) ...[
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.white.withValues(alpha: 0.3)
+                                  : c.color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              '${c.count}',
+                              style: GoogleFonts.sora(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: isSelected ? Colors.white : c.color,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 6),
         ],
       ),
     );
   }
 }
 
+// ── Small helper widgets ─────────────────────────────────────────────────────
+
+/// Frosted-glass style button for the app bar header
+class _GlassButton extends StatelessWidget {
+  const _GlassButton({required this.onTap, required this.child});
+
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Compact stat pill shown in expanded app bar
+class _StatPill extends StatelessWidget {
+  const _StatPill({
+    required this.value,
+    required this.label,
+    required this.valueColor,
+  });
+
+  final String value;
+  final String label;
+  final Color valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.sora(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.sora(
+            fontSize: 10,
+            color: Colors.white.withValues(alpha: 0.72),
+            height: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Compact status-colored chip button in the order card "Move to" row
+class _StatusChipButton extends StatelessWidget {
+  const _StatusChipButton({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.sora(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Action icon button (call / WhatsApp / prescription)
 class _ActionIconButton extends StatelessWidget {
   const _ActionIconButton({
     required this.icon,
@@ -1280,21 +1395,7 @@ class _ActionIconButton extends StatelessWidget {
   }
 }
 
-class _AdminStatCardData {
-  const _AdminStatCardData({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.icon,
-    this.tabIndex,
-  });
-
-  final String label;
-  final String value;
-  final Color color;
-  final IconData icon;
-  final int? tabIndex;
-}
+// ── Data class ───────────────────────────────────────────────────────────────
 
 class _AdminOrderStats {
   const _AdminOrderStats({
@@ -1330,30 +1431,29 @@ class _AdminOrderStats {
     var todayRevenue = 0.0;
 
     for (final order in orders) {
-      if (order.status == OrderStatus.pending) {
-        pendingCount++;
-      }
-      if (order.status == OrderStatus.confirmed) {
-        confirmedCount++;
-      }
-      if (order.status == OrderStatus.preparing) {
-        preparingCount++;
-      }
-      if (order.status == OrderStatus.outForDelivery) {
-        outForDeliveryCount++;
-      }
-      if (order.status == OrderStatus.delivered) {
-        deliveredCount++;
-        final deliveredDate = order.deliveredAt ?? order.createdAt;
-        final orderDay = DateTime(
-          deliveredDate.year,
-          deliveredDate.month,
-          deliveredDate.day,
-        );
-        if (orderDay == today) {
-          deliveredTodayCount++;
-          todayRevenue += order.totalAmount;
-        }
+      switch (order.status) {
+        case OrderStatus.pending:
+          pendingCount++;
+        case OrderStatus.confirmed:
+          confirmedCount++;
+        case OrderStatus.preparing:
+          preparingCount++;
+        case OrderStatus.outForDelivery:
+          outForDeliveryCount++;
+        case OrderStatus.delivered:
+          deliveredCount++;
+          final deliveredDate = order.deliveredAt ?? order.createdAt;
+          final orderDay = DateTime(
+            deliveredDate.year,
+            deliveredDate.month,
+            deliveredDate.day,
+          );
+          if (orderDay == today) {
+            deliveredTodayCount++;
+            todayRevenue += order.totalAmount;
+          }
+        case OrderStatus.cancelled:
+          break;
       }
     }
 

@@ -114,7 +114,7 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
 
   Widget _buildPrescriptionCard() {
     return GestureDetector(
-      onTap: () => context.push('/prescription'),
+      onTap: () => context.push('/prescription?type=lab'),
       child: Container(
         margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
         padding: const EdgeInsets.all(16),

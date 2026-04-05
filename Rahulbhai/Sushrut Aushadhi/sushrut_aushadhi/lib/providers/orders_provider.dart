@@ -14,9 +14,16 @@ final ordersProvider = StreamProvider<List<OrderModel>>((ref) {
   return firestoreService.getUserOrders(uid);
 });
 
-final allOrdersProvider = StreamProvider<List<OrderModel>>((ref) {
+final allOrdersProvider = StreamProvider<List<OrderModel>>((ref) async* {
   final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.getAllOrders();
+  final roleAsync = ref.watch(roleProvider);
+  
+  if (roleAsync.valueOrNull != 'admin') {
+    yield [];
+    return;
+  }
+  
+  yield* firestoreService.getAllOrders();
 });
 
 final orderByStatusProvider = StreamProvider.family<List<OrderModel>, String>((ref, status) {

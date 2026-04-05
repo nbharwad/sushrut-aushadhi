@@ -35,7 +35,7 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
   }
 
   Future<void> _onRefresh() async {
-    ref.invalidate(allLabOrdersProvider);
+    // Stream is already real-time, no need to invalidate
     await Future<void>.delayed(const Duration(milliseconds: 400));
   }
 
