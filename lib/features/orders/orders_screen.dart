@@ -263,9 +263,21 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
     if (confirm != true || !mounted) return;
 
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('Not authenticated');
+
       await FirebaseFirestore.instance.collection('orders').doc(order.orderId).update({
         'status': 'cancelled',
+        'cancelReason': 'Cancelled by customer',
         'updatedAt': FieldValue.serverTimestamp(),
+        'statusHistory': FieldValue.arrayUnion([
+          {
+            'status': 'cancelled',
+            'timestamp': Timestamp.now(),
+            'updatedBy': user.uid,
+            'role': 'customer',
+          }
+        ]),
       });
       ref.invalidate(ordersProvider);
       if (!mounted) return;

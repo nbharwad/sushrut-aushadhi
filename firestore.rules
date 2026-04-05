@@ -46,7 +46,7 @@ service cloud.firestore {
 
     function isValidPrescriptionData() {
       let allowedKeys = ['userId', 'userPhone', 'userName', 'imageUrl',
-                        'status', 'orderId', 'notes', 'createdAt', 'updatedAt'];
+                        'status', 'prescriptionType', 'orderId', 'notes', 'createdAt', 'updatedAt'];
       return request.resource.data.keys().hasOnly(allowedKeys) &&
         request.resource.data.userId == request.auth.uid;
     }
@@ -68,6 +68,14 @@ service cloud.firestore {
     function isValidCustomerOrderUpdate() {
       let allowedKeys = ['notes', 'rating', 'updatedAt'];
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys);
+    }
+
+    function isValidCustomerCancelUpdate() {
+      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let allowedKeys = ['status', 'updatedAt', 'statusHistory', 'cancelReason'];
+      return changedKeys.hasOnly(allowedKeys) &&
+        request.resource.data.status == 'cancelled' &&
+        (resource.data.status == 'pending' || resource.data.status == 'confirmed');
     }
 
     function isValidAdminOrderUpdate() {
@@ -96,8 +104,9 @@ service cloud.firestore {
       allow read: if isSignedIn() &&
         (resource.data.userId == request.auth.uid || isAdminOrDelivery());
 
-      allow update: if isSignedIn() && 
+      allow update: if isSignedIn() &&
         ((resource.data.userId == request.auth.uid && isValidCustomerOrderUpdate()) ||
+        (resource.data.userId == request.auth.uid && isValidCustomerCancelUpdate()) ||
         (isAdmin() && isValidAdminOrderUpdate()) ||
         (isDelivery() && isValidDeliveryOrderUpdate()));
     }
