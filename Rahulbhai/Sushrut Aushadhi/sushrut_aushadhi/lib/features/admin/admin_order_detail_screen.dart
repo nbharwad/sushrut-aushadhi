@@ -26,7 +26,8 @@ class AdminOrderDetailScreen extends ConsumerStatefulWidget {
       _AdminOrderDetailScreenState();
 }
 
-class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen> {
+class _AdminOrderDetailScreenState
+    extends ConsumerState<AdminOrderDetailScreen> {
   final NotificationService _notificationService = NotificationService();
   OrderStatus? _selectedStatus;
   bool _isUpdating = false;
@@ -62,7 +63,8 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Cannot change from ${currentOrder.status.displayName} to ${_selectedStatus!.displayName}'),
+          content: Text(
+              'Cannot change from ${currentOrder.status.displayName} to ${_selectedStatus!.displayName}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -76,9 +78,9 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
           .collection('orders')
           .doc(widget.orderId)
           .update({
-            'status': newStatus,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+        'status': newStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       if (!mounted) {
         return;
@@ -86,12 +88,12 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
 
       final order = ref.read(orderByIdProvider(widget.orderId)).value;
       if (order != null) {
-        final shortId = order.orderId.length > 6 
-            ? order.orderId.substring(order.orderId.length - 6).toUpperCase() 
+        final shortId = order.orderId.length > 6
+            ? order.orderId.substring(order.orderId.length - 6).toUpperCase()
             : order.orderId.toUpperCase();
-        
+
         final itemNames = order.items.map((item) => item.medicineName).toList();
-        
+
         try {
           await WhatsAppService.sendOrderUpdate(
             customerPhone: order.userPhone,
@@ -200,7 +202,8 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Helpers.getStatusColor(order.status).withOpacity(0.1),
+                    color: Helpers.getStatusColor(order.status)
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(

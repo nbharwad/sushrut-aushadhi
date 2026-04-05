@@ -34,7 +34,14 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   String _selectedStatus = 'all';
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -43,8 +50,23 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   @override
   bool get wantKeepAlive => true;
 
+  void _onScroll() {
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent * 0.80) {
+      final pageState = ref.read(adminOrdersPageProvider);
+      if (!pageState.isLoadingMore && pageState.hasMore) {
+        ref.read(adminOrdersPageProvider.notifier).loadNextPage();
+      }
+    }
+  }
+
   Future<void> _onRefresh() async {
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    await ref.read(adminOrdersPageProvider.notifier).refresh();
+  }
+
+  void _onStatusSelected(String status) {
+    setState(() => _selectedStatus = status);
+    ref.read(adminOrdersPageProvider.notifier).loadFirstPage();
   }
 
   void _onSearchChanged(String query) {
@@ -88,11 +110,10 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final ordersAsync = ref.watch(allOrdersProvider);
-    final stats = ordersAsync.maybeWhen(
-      data: _AdminOrderStats.fromOrders,
-      orElse: _AdminOrderStats.empty,
-    );
+    final pageState = ref.watch(adminOrdersPageProvider);
+    final stats = pageState.isInitialLoading
+        ? _AdminOrderStats.empty()
+        : _AdminOrderStats.fromOrders(pageState.orders);
 
     return RefreshIndicator(
       color: Colors.white,
@@ -115,12 +136,12 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
               stats: stats,
               onSearchChanged: _onSearchChanged,
               onSortChanged: _onSortChanged,
-              onStatusSelected: (s) => setState(() => _selectedStatus = s),
+              onStatusSelected: _onStatusSelected,
             ),
           ),
 
           // ── Orders list ───────────────────────────────────────────────
-          _buildOrdersSliver(ordersAsync),
+          _buildOrdersSliver(pageState),
         ],
       ),
     );
@@ -284,64 +305,84 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
 
   // ── Orders Sliver ──────────────────────────────────────────────────────────
 
-  Widget _buildOrdersSliver(AsyncValue<List<OrderModel>> ordersAsync) {
-    return ordersAsync.when(
-      loading: () => const SliverFillRemaining(
+  Widget _buildOrdersSliver(AdminOrdersPageState pageState) {
+    if (pageState.isInitialLoading) {
+      return const SliverFillRemaining(
         child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-      ),
-      error: (error, _) => SliverFillRemaining(
+      );
+    }
+
+    if (pageState.error != null && pageState.orders.isEmpty) {
+      return SliverFillRemaining(
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: ErrorStateWidget(
-              message: 'Could not load orders.\n$error',
+              message: 'Could not load orders.\n${pageState.error}',
               onRetry: _onRefresh,
             ),
           ),
         ),
-      ),
-      data: (orders) {
-        var filteredOrders = _selectedStatus == 'all'
-            ? orders
-            : orders.where((o) => o.status.name == _selectedStatus).toList();
-        filteredOrders = _filterAndSortOrders(filteredOrders);
+      );
+    }
 
-        if (filteredOrders.isEmpty) {
-          return SliverFillRemaining(
-            child: _buildEmptyState(_selectedStatus),
-          );
-        }
+    var filteredOrders = _selectedStatus == 'all'
+        ? pageState.orders
+        : pageState.orders
+            .where((o) => o.status.name == _selectedStatus)
+            .toList();
+    filteredOrders = _filterAndSortOrders(filteredOrders);
 
-        return SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-          sliver: LayoutBuilder(
-            builder: (context, constraints) {
-              final width = MediaQuery.of(context).size.width;
-              if (width >= _kDesktopBreakpoint) {
-                // 2-column grid for large screens
-                return SliverGrid.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.05,
-                  ),
-                  itemCount: filteredOrders.length,
-                  itemBuilder: (context, index) =>
-                      _buildOrderCard(filteredOrders[index]),
-                );
+    if (filteredOrders.isEmpty) {
+      return SliverFillRemaining(
+        child: _buildEmptyState(_selectedStatus),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      sliver: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = MediaQuery.of(context).size.width;
+          final extraItem = pageState.isLoadingMore ? 1 : 0;
+          if (width >= _kDesktopBreakpoint) {
+            // 2-column grid for large screens
+            return SliverGrid.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1.05,
+              ),
+              itemCount: filteredOrders.length + extraItem,
+              itemBuilder: (context, index) {
+                if (index == filteredOrders.length) {
+                  return _buildLoadMoreIndicator();
+                }
+                return _buildOrderCard(filteredOrders[index]);
+              },
+            );
+          }
+          // Single column for phone / small tablet
+          return SliverList.separated(
+            itemCount: filteredOrders.length + extraItem,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              if (index == filteredOrders.length) {
+                return _buildLoadMoreIndicator();
               }
-              // Single column for phone / small tablet
-              return SliverList.separated(
-                itemCount: filteredOrders.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) =>
-                    _buildOrderCard(filteredOrders[index]),
-              );
+              return _buildOrderCard(filteredOrders[index]);
             },
-          ),
-        );
-      },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildLoadMoreIndicator() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 24),
+      child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
     );
   }
 

@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/admin_lab_order_card.dart';
 import '../../models/lab_order_model.dart';
 import '../../providers/lab_providers.dart';
 
@@ -14,7 +15,8 @@ class AdminLabOrdersScreen extends ConsumerStatefulWidget {
   const AdminLabOrdersScreen({super.key});
 
   @override
-  ConsumerState<AdminLabOrdersScreen> createState() => _AdminLabOrdersScreenState();
+  ConsumerState<AdminLabOrdersScreen> createState() =>
+      _AdminLabOrdersScreenState();
 }
 
 class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
@@ -82,12 +84,18 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
   Widget _buildDailySummaryCard(List<LabOrderModel> orders) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final todayOrders = orders.where((o) => o.createdAt.isAfter(today)).toList();
-    
-    final pendingCount = todayOrders.where((o) => o.status == LabOrderStatus.pending).length;
-    final completedCount = todayOrders.where((o) => o.status == LabOrderStatus.completed).length;
-    final pendingPayments = todayOrders.where((o) => o.paymentStatus != 'paid').length;
-    final todayRevenue = todayOrders.where((o) => o.paymentStatus == 'paid').fold(0.0, (sum, o) => sum + o.totalAmount);
+    final todayOrders =
+        orders.where((o) => o.createdAt.isAfter(today)).toList();
+
+    final pendingCount =
+        todayOrders.where((o) => o.status == LabOrderStatus.pending).length;
+    final completedCount =
+        todayOrders.where((o) => o.status == LabOrderStatus.completed).length;
+    final pendingPayments =
+        todayOrders.where((o) => o.paymentStatus != 'paid').length;
+    final todayRevenue = todayOrders
+        .where((o) => o.paymentStatus == 'paid')
+        .fold(0.0, (sum, o) => sum + o.totalAmount);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -109,7 +117,7 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
               Text(
                 "Today's Summary",
                 style: GoogleFonts.sora(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -117,7 +125,7 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
               Text(
                 '${today.day}/${today.month}/${today.year}',
                 style: GoogleFonts.sora(
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                   fontSize: 11,
                 ),
               ),
@@ -126,10 +134,16 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
           const SizedBox(height: 16),
           Row(
             children: [
-              _buildSummaryItem('Total Orders', '${todayOrders.length}', Icons.science),
-              _buildSummaryItem('Pending', '$pendingCount', Icons.hourglass_empty),
-              _buildSummaryItem('Completed', '$completedCount', Icons.check_circle),
-              _buildSummaryItem('Revenue', '\u20B9${todayRevenue.toStringAsFixed(0)}', Icons.currency_rupee),
+              _buildSummaryItem(
+                  'Total Orders', '${todayOrders.length}', Icons.science),
+              _buildSummaryItem(
+                  'Pending', '$pendingCount', Icons.hourglass_empty),
+              _buildSummaryItem(
+                  'Completed', '$completedCount', Icons.check_circle),
+              _buildSummaryItem(
+                  'Revenue',
+                  '\u20B9${todayRevenue.toStringAsFixed(0)}',
+                  Icons.currency_rupee),
             ],
           ),
           if (pendingPayments > 0) ...[
@@ -137,13 +151,14 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.warning_amber, color: Colors.amber, size: 14),
+                  const Icon(Icons.warning_amber,
+                      color: Colors.amber, size: 14),
                   const SizedBox(width: 6),
                   Text(
                     '$pendingPayments pending payment${pendingPayments > 1 ? 's' : ''}',
@@ -166,7 +181,7 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
     return Expanded(
       child: Column(
         children: [
-          Icon(icon, color: Colors.white.withOpacity(0.8), size: 18),
+          Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 18),
           const SizedBox(height: 4),
           Text(
             value,
@@ -179,7 +194,7 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
           Text(
             label,
             style: GoogleFonts.sora(
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 9,
             ),
           ),
@@ -226,7 +241,7 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
                 Text(
                   'Manage diagnostic test orders',
                   style: GoogleFonts.sora(
-                    color: Colors.white.withOpacity(0.75),
+                    color: Colors.white.withValues(alpha: 0.75),
                     fontSize: 12,
                   ),
                 ),
@@ -235,7 +250,7 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
           ),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.14),
+              color: Colors.white.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
@@ -274,10 +289,12 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
     );
   }
 
-  Widget _buildOrderList(AsyncValue<List<LabOrderModel>> ordersAsync, String status) {
+  Widget _buildOrderList(
+      AsyncValue<List<LabOrderModel>> ordersAsync, String status) {
     return ordersAsync.when(
       data: (orders) {
-        final filteredOrders = orders.where((order) => order.status.name == status).toList();
+        final filteredOrders =
+            orders.where((order) => order.status.name == status).toList();
 
         if (filteredOrders.isEmpty) {
           return _buildEmptyState(status);
@@ -306,9 +323,18 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
 
   Widget _buildEmptyState(String status) {
     final emptyMessages = {
-      'pending': ('No Pending Orders', 'No lab orders waiting for sample collection.'),
-      'sampleCollected': ('No Sample Collected', 'No orders awaiting processing.'),
-      'processing': ('No Processing Orders', 'No orders currently being processed.'),
+      'pending': (
+        'No Pending Orders',
+        'No lab orders waiting for sample collection.'
+      ),
+      'sampleCollected': (
+        'No Sample Collected',
+        'No orders awaiting processing.'
+      ),
+      'processing': (
+        'No Processing Orders',
+        'No orders currently being processed.'
+      ),
       'completed': ('No Completed Orders', 'No completed lab orders yet.'),
     };
 
@@ -328,11 +354,15 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.science_outlined, size: 64, color: AppColors.textSecondary),
+                  const Icon(Icons.science_outlined,
+                      size: 64, color: AppColors.textSecondary),
                   const SizedBox(height: 16),
-                  Text(message.$1, style: GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(message.$1,
+                      style: GoogleFonts.sora(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text(message.$2, style: GoogleFonts.sora(color: AppColors.textSecondary)),
+                  Text(message.$2,
+                      style: GoogleFonts.sora(color: AppColors.textSecondary)),
                 ],
               ),
             ),
@@ -343,23 +373,11 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
   }
 
   Widget _buildOrderCard(LabOrderModel order) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8ECE7)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildCardHeader(order),
-          _buildCustomerSection(order),
-          _buildTestsSection(order),
-          _buildStatusUpdateRow(order),
-          _buildCardFooter(order),
-        ],
-      ),
+    return AdminLabOrderCard(
+      order: order,
+      onTap: () => context.push('/admin/lab-order/${order.orderId}'),
+      onCallTap: () {},
+      onWhatsAppTap: () {},
     );
   }
 
@@ -376,23 +394,28 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
           Expanded(
             child: Text(
               'SA-LB-${order.orderId.substring(0, 4).toUpperCase()}',
-              style: GoogleFonts.sora(fontWeight: FontWeight.bold, fontSize: 14),
+              style:
+                  GoogleFonts.sora(fontWeight: FontWeight.bold, fontSize: 14),
             ),
           ),
           Text(
             _getTimeAgo(order.createdAt),
-            style: GoogleFonts.sora(color: AppColors.textSecondary, fontSize: 11),
+            style:
+                GoogleFonts.sora(color: AppColors.textSecondary, fontSize: 11),
           ),
           const SizedBox(width: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.12),
+              color: statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
               order.status.displayName,
-              style: GoogleFonts.sora(color: statusColor, fontWeight: FontWeight.w600, fontSize: 11),
+              style: GoogleFonts.sora(
+                  color: statusColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11),
             ),
           ),
         ],
@@ -413,7 +436,8 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
             backgroundColor: const Color(0xFF00897B),
             child: Text(
               order.userName.isNotEmpty ? order.userName[0].toUpperCase() : 'U',
-              style: GoogleFonts.sora(color: Colors.white, fontWeight: FontWeight.bold),
+              style: GoogleFonts.sora(
+                  color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(width: 12),
@@ -423,20 +447,24 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
               children: [
                 Text(
                   order.userName.isNotEmpty ? order.userName : 'Customer',
-                  style: GoogleFonts.sora(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: GoogleFonts.sora(
+                      fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   order.userPhone,
-                  style: GoogleFonts.sora(color: AppColors.textSecondary, fontSize: 11),
+                  style: GoogleFonts.sora(
+                      color: AppColors.textSecondary, fontSize: 11),
                 ),
-                if (order.homeCollectionAddress != null && order.homeCollectionAddress!.isNotEmpty) ...[
+                if (order.homeCollectionAddress != null &&
+                    order.homeCollectionAddress!.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
                     order.homeCollectionAddress!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.sora(color: AppColors.textSecondary, fontSize: 11),
+                    style: GoogleFonts.sora(
+                        color: AppColors.textSecondary, fontSize: 11),
                   ),
                 ],
               ],
@@ -455,28 +483,38 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
         children: [
           Text(
             '${order.testCount} test${order.testCount == 1 ? '' : 's'}',
-            style: GoogleFonts.sora(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+            style: GoogleFonts.sora(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           ...order.tests.take(3).map<Widget>((test) => Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(color: Color(0xFF00897B), shape: BoxShape.circle),
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                          color: Color(0xFF00897B), shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text(test.testName,
+                            style: GoogleFonts.sora(fontSize: 12))),
+                    Text('\u20B9${test.price.toStringAsFixed(0)}',
+                        style: GoogleFonts.sora(fontSize: 12)),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Expanded(child: Text(test.testName, style: GoogleFonts.sora(fontSize: 12))),
-                Text('\u20B9${test.price.toStringAsFixed(0)}', style: GoogleFonts.sora(fontSize: 12)),
-              ],
-            ),
-          )),
+              )),
           if (order.testCount > 3)
             Text(
               '+${order.testCount - 3} more',
-              style: GoogleFonts.sora(color: AppColors.textSecondary, fontSize: 11, fontStyle: FontStyle.italic),
+              style: GoogleFonts.sora(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic),
             ),
         ],
       ),
@@ -494,27 +532,37 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
         children: [
           Text(
             'UPDATE STATUS',
-            style: GoogleFonts.sora(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1),
+            style: GoogleFonts.sora(
+                color: AppColors.textSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1),
           ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: nextStatuses.map((status) => InkWell(
-              borderRadius: BorderRadius.circular(999),
-              onTap: () => _updateOrderStatus(order.orderId, status),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  status.displayName,
-                  style: GoogleFonts.sora(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-              ),
-            )).toList(),
+            children: nextStatuses
+                .map((status) => InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: () => _updateOrderStatus(order.orderId, status),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          status.displayName,
+                          style: GoogleFonts.sora(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ))
+                .toList(),
           ),
         ],
       ),
@@ -530,8 +578,12 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Total Amount', style: GoogleFonts.sora(color: AppColors.textSecondary, fontSize: 11)),
-              Text('\u20B9${order.totalAmount.toStringAsFixed(0)}', style: GoogleFonts.sora(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('Total Amount',
+                  style: GoogleFonts.sora(
+                      color: AppColors.textSecondary, fontSize: 11)),
+              Text('\u20B9${order.totalAmount.toStringAsFixed(0)}',
+                  style: GoogleFonts.sora(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 4),
               _buildPaymentStatusChip(order),
             ],
@@ -546,19 +598,26 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.primary),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                     ),
-                    child: Text('Mark as Paid', style: GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.w600)),
+                    child: Text('Mark as Paid',
+                        style: GoogleFonts.sora(
+                            fontSize: 12, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ElevatedButton(
-                onPressed: () => context.push('/admin/lab-order/${order.orderId}'),
+                onPressed: () =>
+                    context.push('/admin/lab-order/${order.orderId}'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 ),
-                child: Text('View Details', style: GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.w600)),
+                child: Text('View Details',
+                    style: GoogleFonts.sora(
+                        fontSize: 12, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -572,7 +631,9 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isPaid ? AppColors.primary.withOpacity(0.12) : Colors.orange.withOpacity(0.12),
+        color: isPaid
+            ? AppColors.primary.withValues(alpha: 0.12)
+            : Colors.orange.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -590,16 +651,19 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Confirm Payment', style: GoogleFonts.sora(fontWeight: FontWeight.bold)),
+        title: Text('Confirm Payment',
+            style: GoogleFonts.sora(fontWeight: FontWeight.bold)),
         content: Text('Mark this order as paid?', style: GoogleFonts.sora()),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: GoogleFonts.sora(color: AppColors.textSecondary)),
+            child: Text('Cancel',
+                style: GoogleFonts.sora(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Confirm', style: GoogleFonts.sora(color: AppColors.primary)),
+            child: Text('Confirm',
+                style: GoogleFonts.sora(color: AppColors.primary)),
           ),
         ],
       ),
@@ -610,7 +674,9 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
         await ref.read(labServiceProvider).updatePaymentStatus(orderId, 'paid');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment marked as paid', style: GoogleFonts.sora())),
+          SnackBar(
+              content:
+                  Text('Payment marked as paid', style: GoogleFonts.sora())),
         );
       } catch (e) {
         if (!mounted) return;
@@ -635,12 +701,17 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
     }
   }
 
-  Future<void> _updateOrderStatus(String orderId, LabOrderStatus newStatus) async {
+  Future<void> _updateOrderStatus(
+      String orderId, LabOrderStatus newStatus) async {
     try {
-      await ref.read(labServiceProvider).updateLabOrderStatus(orderId, newStatus);
+      await ref
+          .read(labServiceProvider)
+          .updateLabOrderStatus(orderId, newStatus);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Status updated to ${newStatus.displayName}', style: GoogleFonts.sora())),
+        SnackBar(
+            content: Text('Status updated to ${newStatus.displayName}',
+                style: GoogleFonts.sora())),
       );
     } catch (e) {
       if (!mounted) return;
@@ -679,10 +750,12 @@ class AdminLabOrderDetailScreen extends ConsumerStatefulWidget {
   const AdminLabOrderDetailScreen({super.key, required this.orderId});
 
   @override
-  ConsumerState<AdminLabOrderDetailScreen> createState() => _AdminLabOrderDetailScreenState();
+  ConsumerState<AdminLabOrderDetailScreen> createState() =>
+      _AdminLabOrderDetailScreenState();
 }
 
-class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailScreen> {
+class _AdminLabOrderDetailScreenState
+    extends ConsumerState<AdminLabOrderDetailScreen> {
   final ValueNotifier<double?> _uploadProgress = ValueNotifier<double?>(null);
 
   @override
@@ -721,7 +794,8 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
     );
   }
 
-  Widget _buildContent(BuildContext context, WidgetRef ref, LabOrderModel order) {
+  Widget _buildContent(
+      BuildContext context, WidgetRef ref, LabOrderModel order) {
     final statusColor = _getStatusColor(order.status);
 
     return SingleChildScrollView(
@@ -741,25 +815,34 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
+                    color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(_getStatusIcon(order.status), color: statusColor, size: 28),
+                  child: Icon(_getStatusIcon(order.status),
+                      color: statusColor, size: 28),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('SA-LB-${order.orderId.substring(0, 4).toUpperCase()}', style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text(
+                          'SA-LB-${order.orderId.substring(0, 4).toUpperCase()}',
+                          style: GoogleFonts.sora(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.12),
+                          color: statusColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(999),
                         ),
-                        child: Text(order.status.displayName, style: GoogleFonts.sora(color: statusColor, fontSize: 12, fontWeight: FontWeight.w600)),
+                        child: Text(order.status.displayName,
+                            style: GoogleFonts.sora(
+                                color: statusColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
                       ),
                     ],
                   ),
@@ -778,18 +861,36 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Customer', style: GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                Text('Customer',
+                    style: GoogleFonts.sora(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary)),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    CircleAvatar(backgroundColor: const Color(0xFF00897B), child: Text(order.userName.isNotEmpty ? order.userName[0].toUpperCase() : 'U', style: const TextStyle(color: Colors.white))),
+                    CircleAvatar(
+                        backgroundColor: const Color(0xFF00897B),
+                        child: Text(
+                            order.userName.isNotEmpty
+                                ? order.userName[0].toUpperCase()
+                                : 'U',
+                            style: const TextStyle(color: Colors.white))),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(order.userName.isNotEmpty ? order.userName : 'Customer', style: GoogleFonts.sora(fontWeight: FontWeight.bold)),
-                          Text(order.userPhone, style: GoogleFonts.sora(color: AppColors.textSecondary, fontSize: 12)),
+                          Text(
+                              order.userName.isNotEmpty
+                                  ? order.userName
+                                  : 'Customer',
+                              style: GoogleFonts.sora(
+                                  fontWeight: FontWeight.bold)),
+                          Text(order.userPhone,
+                              style: GoogleFonts.sora(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12)),
                         ],
                       ),
                     ),
@@ -809,31 +910,47 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Tests (${order.testCount})', style: GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                Text('Tests (${order.testCount})',
+                    style: GoogleFonts.sora(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary)),
                 const SizedBox(height: 12),
                 ...order.tests.map<Widget>((test) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.science, size: 16, color: Color(0xFF00897B)),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(test.testName, style: GoogleFonts.sora(fontSize: 14))),
-                      Text('\u20B9${test.price.toStringAsFixed(0)}', style: GoogleFonts.sora(fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                )),
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.science,
+                              size: 16, color: Color(0xFF00897B)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                              child: Text(test.testName,
+                                  style: GoogleFonts.sora(fontSize: 14))),
+                          Text('\u20B9${test.price.toStringAsFixed(0)}',
+                              style: GoogleFonts.sora(
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    )),
                 const Divider(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Total', style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text('\u20B9${order.totalAmount.toStringAsFixed(0)}', style: GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                    Text('Total',
+                        style: GoogleFonts.sora(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text('\u20B9${order.totalAmount.toStringAsFixed(0)}',
+                        style: GoogleFonts.sora(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary)),
                   ],
                 ),
               ],
             ),
           ),
-          if (order.homeCollectionAddress != null && order.homeCollectionAddress!.isNotEmpty) ...[
+          if (order.homeCollectionAddress != null &&
+              order.homeCollectionAddress!.isNotEmpty) ...[
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(16),
@@ -847,13 +964,18 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.location_on, color: Color(0xFF1E88E5), size: 20),
+                      const Icon(Icons.location_on,
+                          color: Color(0xFF1E88E5), size: 20),
                       const SizedBox(width: 8),
-                      Text('Sample Collection Address', style: GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.bold)),
+                      Text('Sample Collection Address',
+                          style: GoogleFonts.sora(
+                              fontSize: 14, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text(order.homeCollectionAddress!, style: GoogleFonts.sora(fontSize: 14, color: AppColors.textSecondary)),
+                  Text(order.homeCollectionAddress!,
+                      style: GoogleFonts.sora(
+                          fontSize: 14, color: AppColors.textSecondary)),
                 ],
               ),
             ),
@@ -872,36 +994,49 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.note, color: Color(0xFFFB8C00), size: 20),
+                      const Icon(Icons.note,
+                          color: Color(0xFFFB8C00), size: 20),
                       const SizedBox(width: 8),
-                      Text('Notes', style: GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.bold)),
+                      Text('Notes',
+                          style: GoogleFonts.sora(
+                              fontSize: 14, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text(order.notes!, style: GoogleFonts.sora(fontSize: 14, color: AppColors.textSecondary)),
+                  Text(order.notes!,
+                      style: GoogleFonts.sora(
+                          fontSize: 14, color: AppColors.textSecondary)),
                 ],
               ),
             ),
           ],
           const SizedBox(height: 24),
-          Text('Upload Lab Result', style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('Upload Lab Result',
+              style:
+                  GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           _buildUploadSection(context, ref, order),
           const SizedBox(height: 24),
-          Text('Update Status', style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('Update Status',
+              style:
+                  GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: _getNextStatuses(order.status)
                 .map((status) => ElevatedButton(
-                  onPressed: () => _updateStatus(context, ref, order.orderId, status),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: status == LabOrderStatus.cancelled ? AppColors.error : AppColors.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: Text(status.displayName, style: GoogleFonts.sora()),
-                ))
+                      onPressed: () =>
+                          _updateStatus(context, ref, order.orderId, status),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: status == LabOrderStatus.cancelled
+                            ? AppColors.error
+                            : AppColors.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      child:
+                          Text(status.displayName, style: GoogleFonts.sora()),
+                    ))
                 .toList(),
           ),
           const SizedBox(height: 40),
@@ -924,17 +1059,24 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
     }
   }
 
-  Future<void> _updateStatus(BuildContext context, WidgetRef ref, String orderId, LabOrderStatus status) async {
+  Future<void> _updateStatus(BuildContext context, WidgetRef ref,
+      String orderId, LabOrderStatus status) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Confirm Status', style: GoogleFonts.sora(fontWeight: FontWeight.bold)),
-        content: Text('Update order status to ${status.displayName}?', style: GoogleFonts.sora()),
+        title: Text('Confirm Status',
+            style: GoogleFonts.sora(fontWeight: FontWeight.bold)),
+        content: Text('Update order status to ${status.displayName}?',
+            style: GoogleFonts.sora()),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancel', style: GoogleFonts.sora(color: AppColors.textSecondary))),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Cancel',
+                  style: GoogleFonts.sora(color: AppColors.textSecondary))),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Confirm', style: GoogleFonts.sora(color: AppColors.primary)),
+            child: Text('Confirm',
+                style: GoogleFonts.sora(color: AppColors.primary)),
           ),
         ],
       ),
@@ -942,10 +1084,14 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
 
     if (confirm == true) {
       try {
-        await ref.read(labServiceProvider).updateLabOrderStatus(orderId, status);
+        await ref
+            .read(labServiceProvider)
+            .updateLabOrderStatus(orderId, status);
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Status updated to ${status.displayName}', style: GoogleFonts.sora())),
+          SnackBar(
+              content: Text('Status updated to ${status.displayName}',
+                  style: GoogleFonts.sora())),
         );
       } catch (e) {
         if (!context.mounted) return;
@@ -986,36 +1132,47 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
     }
   }
 
-  Widget _buildUploadSection(BuildContext context, WidgetRef ref, LabOrderModel order) {
+  Widget _buildUploadSection(
+      BuildContext context, WidgetRef ref, LabOrderModel order) {
     return ValueListenableBuilder<double?>(
       builder: (context, progress, child) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (order.labResultUrl != null && order.labResultUrl!.isNotEmpty) ...[
+            if (order.labResultUrl != null &&
+                order.labResultUrl!.isNotEmpty) ...[
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                  border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle, color: AppColors.primary, size: 24),
+                    const Icon(Icons.check_circle,
+                        color: AppColors.primary, size: 24),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Lab Result Uploaded', style: GoogleFonts.sora(fontWeight: FontWeight.w600)),
-                          Text('PDF available', style: GoogleFonts.sora(color: AppColors.textSecondary, fontSize: 12)),
+                          Text('Lab Result Uploaded',
+                              style: GoogleFonts.sora(
+                                  fontWeight: FontWeight.w600)),
+                          Text('PDF available',
+                              style: GoogleFonts.sora(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12)),
                         ],
                       ),
                     ),
                     TextButton(
-                      onPressed: () => _updateStatus(context, ref, order.orderId, LabOrderStatus.completed),
-                      child: Text('Mark Complete', style: GoogleFonts.sora(fontSize: 12)),
+                      onPressed: () => _updateStatus(context, ref,
+                          order.orderId, LabOrderStatus.completed),
+                      child: Text('Mark Complete',
+                          style: GoogleFonts.sora(fontSize: 12)),
                     ),
                   ],
                 ),
@@ -1028,11 +1185,16 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
                     children: [
                       const Icon(Icons.upload_file, color: AppColors.primary),
                       const SizedBox(width: 8),
-                      Text('Uploading... ${(progress * 100).toInt()}%', style: GoogleFonts.sora()),
+                      Text('Uploading... ${(progress * 100).toInt()}%',
+                          style: GoogleFonts.sora()),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  LinearProgressIndicator(value: progress, backgroundColor: Colors.grey[300], valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary)),
+                  LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: Colors.grey[300],
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppColors.primary)),
                 ],
               ),
             ] else ...[
@@ -1044,14 +1206,20 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE8ECE7), style: BorderStyle.solid),
+                    border: Border.all(
+                        color: const Color(0xFFE8ECE7),
+                        style: BorderStyle.solid),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.cloud_upload_outlined, color: AppColors.primary),
+                      const Icon(Icons.cloud_upload_outlined,
+                          color: AppColors.primary),
                       const SizedBox(width: 8),
-                      Text('Upload PDF Report', style: GoogleFonts.sora(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                      Text('Upload PDF Report',
+                          style: GoogleFonts.sora(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -1064,7 +1232,8 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
     );
   }
 
-  Future<void> _pickAndUploadFile(BuildContext context, WidgetRef ref, String orderId) async {
+  Future<void> _pickAndUploadFile(
+      BuildContext context, WidgetRef ref, String orderId) async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -1078,17 +1247,24 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
       if (file.path == null) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not access file', style: GoogleFonts.sora())),
+          SnackBar(
+              content:
+                  Text('Could not access file', style: GoogleFonts.sora())),
         );
         return;
       }
 
       _uploadProgress.value = 0.0;
 
-      final uploadTask = FirebaseStorage.instance.ref().child('lab_results').child(orderId).child(file.name).putFile(
-        File(file.path!),
-        SettableMetadata(contentType: 'application/pdf'),
-      );
+      final uploadTask = FirebaseStorage.instance
+          .ref()
+          .child('lab_results')
+          .child(orderId)
+          .child(file.name)
+          .putFile(
+            File(file.path!),
+            SettableMetadata(contentType: 'application/pdf'),
+          );
 
       uploadTask.snapshotEvents.listen((task) {
         if (task.state == TaskState.running) {
@@ -1101,17 +1277,22 @@ class _AdminLabOrderDetailScreenState extends ConsumerState<AdminLabOrderDetailS
       final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
-      await ref.read(labServiceProvider).updateLabOrderStatus(orderId, LabOrderStatus.completed, note: 'Lab result uploaded');
+      await ref.read(labServiceProvider).updateLabOrderStatus(
+          orderId, LabOrderStatus.completed,
+          note: 'Lab result uploaded');
 
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lab result uploaded successfully', style: GoogleFonts.sora())),
+        SnackBar(
+            content: Text('Lab result uploaded successfully',
+                style: GoogleFonts.sora())),
       );
     } catch (e) {
       _uploadProgress.value = null;
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading: $e', style: GoogleFonts.sora())),
+        SnackBar(
+            content: Text('Error uploading: $e', style: GoogleFonts.sora())),
       );
     }
   }

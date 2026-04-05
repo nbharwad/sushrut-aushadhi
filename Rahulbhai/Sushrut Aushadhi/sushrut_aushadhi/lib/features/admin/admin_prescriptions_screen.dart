@@ -147,7 +147,7 @@ class _AdminPrescriptionsScreenState
                 Text(
                   'Sushrut Aushadhi · Admin',
                   style: GoogleFonts.sora(
-                    color: Colors.white.withOpacity(0.65),
+                    color: Colors.white.withValues(alpha: 0.65),
                     fontSize: 10,
                   ),
                 ),
@@ -178,7 +178,8 @@ class _AdminPrescriptionsScreenState
                 if (_medicinePendingCount > 0) ...[
                   const SizedBox(width: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.orange,
                       borderRadius: BorderRadius.circular(10),
@@ -206,7 +207,8 @@ class _AdminPrescriptionsScreenState
                 if (_labPendingCount > 0) ...[
                   const SizedBox(width: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.orange,
                       borderRadius: BorderRadius.circular(10),
@@ -236,7 +238,7 @@ class _AdminPrescriptionsScreenState
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith<Color?>(
             (states) => states.contains(WidgetState.selected)
-                ? AppColors.primary.withOpacity(0.12)
+                ? AppColors.primary.withValues(alpha: 0.12)
                 : null,
           ),
           foregroundColor: WidgetStateProperty.resolveWith<Color?>(
@@ -255,25 +257,34 @@ class _AdminPrescriptionsScreenState
   Widget _buildStatsRow() {
     final screenWidth = MediaQuery.of(context).size.width;
     final isCompact = screenWidth < 360;
-    
+
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 12, vertical: isCompact ? 8 : 12),
+      padding: EdgeInsets.symmetric(
+          horizontal: isCompact ? 8 : 12, vertical: isCompact ? 8 : 12),
       child: Row(
         children: [
-          Expanded(child: _buildStatCard('Pending', _pendingCount.toString(), Colors.orange, isCompact)),
+          Expanded(
+              child: _buildStatCard('Pending', _pendingCount.toString(),
+                  Colors.orange, isCompact)),
           SizedBox(width: isCompact ? 6 : 8),
-          Expanded(child: _buildStatCard('Approved', _approvedCount.toString(), AppColors.primary, isCompact)),
+          Expanded(
+              child: _buildStatCard('Approved', _approvedCount.toString(),
+                  AppColors.primary, isCompact)),
           SizedBox(width: isCompact ? 6 : 8),
-          Expanded(child: _buildStatCard('Rejected', _rejectedCount.toString(), AppColors.error, isCompact)),
+          Expanded(
+              child: _buildStatCard('Rejected', _rejectedCount.toString(),
+                  AppColors.error, isCompact)),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String label, String value, Color color, bool isCompact) {
+  Widget _buildStatCard(
+      String label, String value, Color color, bool isCompact) {
     return Expanded(
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: isCompact ? 8 : 12, horizontal: isCompact ? 6 : 8),
+        padding: EdgeInsets.symmetric(
+            vertical: isCompact ? 8 : 12, horizontal: isCompact ? 6 : 8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -323,7 +334,8 @@ class _AdminPrescriptionsScreenState
                 if (_pendingCount > 0) ...[
                   const SizedBox(width: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.orange,
                       borderRadius: BorderRadius.circular(10),
@@ -371,7 +383,8 @@ class _AdminPrescriptionsScreenState
           _updateStats(all);
 
           // Filter by selected type first, then by status tab
-          final byType = all.where((p) => p.prescriptionType == _selectedType).toList();
+          final byType =
+              all.where((p) => p.prescriptionType == _selectedType).toList();
           final prescriptions = status == null
               ? byType
               : byType.where((p) => p.status == status).toList();
@@ -505,7 +518,8 @@ class _PrescriptionCard extends StatelessWidget {
           _buildHeader(),
           _buildCustomerRow(),
           _buildImage(context),
-          if (prescription.status == PrescriptionStatus.pending) _buildActions(context),
+          if (prescription.status == PrescriptionStatus.pending)
+            _buildActions(context),
           _buildFooter(),
         ],
       ),
@@ -548,15 +562,15 @@ class _PrescriptionCard extends StatelessWidget {
 
     switch (prescription.status) {
       case PrescriptionStatus.pending:
-        bgColor = Colors.orange.withOpacity(0.1);
+        bgColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         break;
       case PrescriptionStatus.approved:
-        bgColor = AppColors.primary.withOpacity(0.1);
+        bgColor = AppColors.primary.withValues(alpha: 0.1);
         textColor = AppColors.primary;
         break;
       case PrescriptionStatus.rejected:
-        bgColor = AppColors.error.withOpacity(0.1);
+        bgColor = AppColors.error.withValues(alpha: 0.1);
         textColor = AppColors.error;
         break;
     }
@@ -579,14 +593,15 @@ class _PrescriptionCard extends StatelessWidget {
   }
 
   Widget _buildCustomerRow() {
-    final initials = prescription.userName != null && prescription.userName!.isNotEmpty
-        ? prescription.userName!
-            .split(' ')
-            .map((e) => e.isNotEmpty ? e[0] : '')
-            .take(2)
-            .join()
-            .toUpperCase()
-        : 'CU';
+    final initials =
+        prescription.userName != null && prescription.userName!.isNotEmpty
+            ? prescription.userName!
+                .split(' ')
+                .map((e) => e.isNotEmpty ? e[0] : '')
+                .take(2)
+                .join()
+                .toUpperCase()
+            : 'CU';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -636,7 +651,8 @@ class _PrescriptionCard extends StatelessWidget {
               ],
             ),
           ),
-          if (prescription.userPhone != null && prescription.userPhone!.isNotEmpty)
+          if (prescription.userPhone != null &&
+              prescription.userPhone!.isNotEmpty)
             GestureDetector(
               onTap: () => _launchUrl('tel:${prescription.userPhone}'),
               child: Container(

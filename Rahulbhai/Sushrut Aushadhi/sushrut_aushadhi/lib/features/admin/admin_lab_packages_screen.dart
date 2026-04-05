@@ -11,10 +11,12 @@ class AdminLabPackagesScreen extends ConsumerStatefulWidget {
   const AdminLabPackagesScreen({super.key});
 
   @override
-  ConsumerState<AdminLabPackagesScreen> createState() => _AdminLabPackagesScreenState();
+  ConsumerState<AdminLabPackagesScreen> createState() =>
+      _AdminLabPackagesScreenState();
 }
 
-class _AdminLabPackagesScreenState extends ConsumerState<AdminLabPackagesScreen> {
+class _AdminLabPackagesScreenState
+    extends ConsumerState<AdminLabPackagesScreen> {
   String _searchQuery = '';
 
   @override
@@ -28,7 +30,8 @@ class _AdminLabPackagesScreenState extends ConsumerState<AdminLabPackagesScreen>
         backgroundColor: AppColors.labPrimary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: Text('Add Package', style: GoogleFonts.sora(fontWeight: FontWeight.w600)),
+        label: Text('Add Package',
+            style: GoogleFonts.sora(fontWeight: FontWeight.w600)),
       ),
       body: SafeArea(
         child: Column(
@@ -40,15 +43,21 @@ class _AdminLabPackagesScreenState extends ConsumerState<AdminLabPackagesScreen>
                 data: (packages) {
                   final filtered = _searchQuery.isEmpty
                       ? packages
-                      : packages.where((p) => p.name.toLowerCase().contains(_searchQuery)).toList();
+                      : packages
+                          .where((p) =>
+                              p.name.toLowerCase().contains(_searchQuery))
+                          .toList();
                   if (filtered.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textSecondary),
+                          const Icon(Icons.inventory_2_outlined,
+                              size: 64, color: AppColors.textSecondary),
                           const SizedBox(height: 16),
-                          Text('No packages found', style: GoogleFonts.sora(color: AppColors.textSecondary)),
+                          Text('No packages found',
+                              style: GoogleFonts.sora(
+                                  color: AppColors.textSecondary)),
                         ],
                       ),
                     );
@@ -64,8 +73,11 @@ class _AdminLabPackagesScreenState extends ConsumerState<AdminLabPackagesScreen>
                     ),
                   );
                 },
-                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.labPrimary)),
-                error: (e, _) => Center(child: Text('Error: $e', style: GoogleFonts.sora())),
+                loading: () => const Center(
+                    child:
+                        CircularProgressIndicator(color: AppColors.labPrimary)),
+                error: (e, _) =>
+                    Center(child: Text('Error: $e', style: GoogleFonts.sora())),
               ),
             ),
           ],
@@ -88,15 +100,18 @@ class _AdminLabPackagesScreenState extends ConsumerState<AdminLabPackagesScreen>
         children: [
           IconButton(
             onPressed: () {
-              if (context.canPop()) context.pop();
-              else context.go('/admin');
+              if (context.canPop())
+                context.pop();
+              else
+                context.go('/admin');
             },
             icon: const Icon(Icons.arrow_back, color: Colors.white),
           ),
           const SizedBox(width: 8),
           Text(
             'Manage Lab Packages',
-            style: GoogleFonts.sora(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            style: GoogleFonts.sora(
+                color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -126,7 +141,8 @@ class _AdminLabPackagesScreenState extends ConsumerState<AdminLabPackagesScreen>
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: AppColors.labPrimary),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
         style: GoogleFonts.sora(),
       ),
@@ -149,7 +165,8 @@ class _AdminLabPackagesScreenState extends ConsumerState<AdminLabPackagesScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Delete Package', style: GoogleFonts.sora(fontWeight: FontWeight.bold)),
+        title: Text('Delete Package',
+            style: GoogleFonts.sora(fontWeight: FontWeight.bold)),
         content: Text(
           'Are you sure you want to delete "${package.name}"? This cannot be undone.',
           style: GoogleFonts.sora(),
@@ -161,7 +178,8 @@ class _AdminLabPackagesScreenState extends ConsumerState<AdminLabPackagesScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete', style: GoogleFonts.sora(color: AppColors.error)),
+            child:
+                Text('Delete', style: GoogleFonts.sora(color: AppColors.error)),
           ),
         ],
       ),
@@ -223,7 +241,10 @@ class _AdminPackageTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE8ECE7)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -232,7 +253,9 @@ class _AdminPackageTile extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(package.name, style: GoogleFonts.sora(fontSize: 15, fontWeight: FontWeight.bold)),
+                child: Text(package.name,
+                    style: GoogleFonts.sora(
+                        fontSize: 15, fontWeight: FontWeight.bold)),
               ),
               Switch(
                 value: package.active,
@@ -246,10 +269,14 @@ class _AdminPackageTile extends StatelessWidget {
             spacing: 8,
             runSpacing: 6,
             children: [
-              _badge(package.category, AppColors.labPrimaryLight, AppColors.labPrimary),
-              _badge('${package.testCount} tests', const Color(0xFFE8F5E9), const Color(0xFF388E3C)),
-              _badge(package.tatDisplay, const Color(0xFFFFF3E0), const Color(0xFFF57F17)),
-              _badge('\u20B9${package.price.toStringAsFixed(0)}', const Color(0xFFE3F2FD), const Color(0xFF1565C0)),
+              _badge(package.category, AppColors.labPrimaryLight,
+                  AppColors.labPrimary),
+              _badge('${package.testCount} tests', const Color(0xFFE8F5E9),
+                  const Color(0xFF388E3C)),
+              _badge(package.tatDisplay, const Color(0xFFFFF3E0),
+                  const Color(0xFFF57F17)),
+              _badge('\u20B9${package.price.toStringAsFixed(0)}',
+                  const Color(0xFFE3F2FD), const Color(0xFF1565C0)),
             ],
           ),
           const SizedBox(height: 10),
@@ -260,7 +287,8 @@ class _AdminPackageTile extends StatelessWidget {
                 onPressed: onEdit,
                 icon: const Icon(Icons.edit, size: 16),
                 label: Text('Edit', style: GoogleFonts.sora(fontSize: 13)),
-                style: TextButton.styleFrom(foregroundColor: AppColors.labPrimary),
+                style:
+                    TextButton.styleFrom(foregroundColor: AppColors.labPrimary),
               ),
               const SizedBox(width: 8),
               TextButton.icon(
@@ -279,8 +307,11 @@ class _AdminPackageTile extends StatelessWidget {
   Widget _badge(String text, Color bg, Color fg) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
-      child: Text(text, style: GoogleFonts.sora(fontSize: 11, color: fg, fontWeight: FontWeight.w600)),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Text(text,
+          style: GoogleFonts.sora(
+              fontSize: 11, color: fg, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -316,7 +347,14 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
   final Set<String> _selectedTestIds = {};
 
   static const _categories = [
-    'popular', 'blood', 'diabetes', 'thyroid', 'vitamins', 'heart', 'women', 'other'
+    'popular',
+    'blood',
+    'diabetes',
+    'thyroid',
+    'vitamins',
+    'heart',
+    'women',
+    'other'
   ];
 
   @override
@@ -326,10 +364,12 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
     _nameCtrl = TextEditingController(text: e?.name ?? '');
     _descCtrl = TextEditingController(text: e?.shortDescription ?? '');
     _priceCtrl = TextEditingController(text: e?.price.toStringAsFixed(0) ?? '');
-    _originalPriceCtrl = TextEditingController(text: e?.originalPrice.toStringAsFixed(0) ?? '');
+    _originalPriceCtrl =
+        TextEditingController(text: e?.originalPrice.toStringAsFixed(0) ?? '');
     _tatCtrl = TextEditingController(text: e?.tatHours.toString() ?? '24');
     _sampleTypeCtrl = TextEditingController(text: e?.sampleType ?? 'Blood');
-    _sortOrderCtrl = TextEditingController(text: e?.sortOrder.toString() ?? '99');
+    _sortOrderCtrl =
+        TextEditingController(text: e?.sortOrder.toString() ?? '99');
     _category = e?.category ?? 'popular';
     _fastingRequired = e?.fastingRequired ?? false;
     _fastingHours = e?.fastingHours ?? 10;
@@ -358,7 +398,9 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedTestIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select at least one test', style: GoogleFonts.sora())),
+        SnackBar(
+            content: Text('Please select at least one test',
+                style: GoogleFonts.sora())),
       );
       return;
     }
@@ -367,14 +409,17 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
 
     try {
       final allTests = ref.read(allLabTestsStreamProvider).valueOrNull ?? [];
-      final selectedTests = allTests.where((t) => _selectedTestIds.contains(t.id)).toList();
+      final selectedTests =
+          allTests.where((t) => _selectedTestIds.contains(t.id)).toList();
 
       final package = LabPackageModel(
         id: widget.existing?.id ?? '',
         name: _nameCtrl.text.trim(),
         shortDescription: _descCtrl.text.trim(),
         category: _category,
-        sampleType: _sampleTypeCtrl.text.trim().isEmpty ? 'Blood' : _sampleTypeCtrl.text.trim(),
+        sampleType: _sampleTypeCtrl.text.trim().isEmpty
+            ? 'Blood'
+            : _sampleTypeCtrl.text.trim(),
         iconName: 'biotech',
         price: double.tryParse(_priceCtrl.text) ?? 0,
         originalPrice: double.tryParse(_originalPriceCtrl.text) ?? 0,
@@ -449,8 +494,13 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
             child: Row(
               children: [
                 Text(
-                  widget.existing == null ? 'Add Lab Package' : 'Edit Lab Package',
-                  style: GoogleFonts.sora(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  widget.existing == null
+                      ? 'Add Lab Package'
+                      : 'Edit Lab Package',
+                  style: GoogleFonts.sora(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 IconButton(
@@ -474,15 +524,22 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Expanded(child: _field('Price (₹)', _priceCtrl, required: true, isNumber: true)),
+                        Expanded(
+                            child: _field('Price (₹)', _priceCtrl,
+                                required: true, isNumber: true)),
                         const SizedBox(width: 12),
-                        Expanded(child: _field('Original Price (₹)', _originalPriceCtrl, isNumber: true)),
+                        Expanded(
+                            child: _field(
+                                'Original Price (₹)', _originalPriceCtrl,
+                                isNumber: true)),
                       ],
                     ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Expanded(child: _field('TAT (hours)', _tatCtrl, required: true, isNumber: true)),
+                        Expanded(
+                            child: _field('TAT (hours)', _tatCtrl,
+                                required: true, isNumber: true)),
                         const SizedBox(width: 12),
                         Expanded(child: _field('Sample Type', _sampleTypeCtrl)),
                       ],
@@ -490,13 +547,19 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Expanded(child: _field('Sort Order', _sortOrderCtrl, isNumber: true)),
+                        Expanded(
+                            child: _field('Sort Order', _sortOrderCtrl,
+                                isNumber: true)),
                         const SizedBox(width: 12),
                         Expanded(
                           child: DropdownButtonFormField<String>(
                             value: _category,
                             decoration: _inputDecoration('Category'),
-                            items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.sora()))).toList(),
+                            items: _categories
+                                .map((c) => DropdownMenuItem(
+                                    value: c,
+                                    child: Text(c, style: GoogleFonts.sora())))
+                                .toList(),
                             onChanged: (v) => setState(() => _category = v!),
                             style: GoogleFonts.sora(),
                           ),
@@ -508,7 +571,8 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
                       children: [
                         Checkbox(
                           value: _fastingRequired,
-                          onChanged: (v) => setState(() => _fastingRequired = v!),
+                          onChanged: (v) =>
+                              setState(() => _fastingRequired = v!),
                           activeColor: AppColors.labPrimary,
                         ),
                         Text('Fasting Required', style: GoogleFonts.sora()),
@@ -520,7 +584,8 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
                             width: 60,
                             child: TextFormField(
                               initialValue: _fastingHours.toString(),
-                              onChanged: (v) => _fastingHours = int.tryParse(v) ?? 10,
+                              onChanged: (v) =>
+                                  _fastingHours = int.tryParse(v) ?? 10,
                               keyboardType: TextInputType.number,
                               decoration: _inputDecoration(''),
                               style: GoogleFonts.sora(),
@@ -550,9 +615,13 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
                     _sectionHeader('Select Tests'),
                     const SizedBox(height: 8),
                     if (testsAsync.isLoading)
-                      const Center(child: CircularProgressIndicator(color: AppColors.labPrimary))
+                      const Center(
+                          child: CircularProgressIndicator(
+                              color: AppColors.labPrimary))
                     else if (allTests.isEmpty)
-                      Text('No tests available. Add tests first.', style: GoogleFonts.sora(color: AppColors.textSecondary))
+                      Text('No tests available. Add tests first.',
+                          style:
+                              GoogleFonts.sora(color: AppColors.textSecondary))
                     else
                       ...allTests.map((test) {
                         final isSelected = _selectedTestIds.contains(test.id);
@@ -565,8 +634,11 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
                               _selectedTestIds.remove(test.id);
                             }
                           }),
-                          title: Text(test.name, style: GoogleFonts.sora(fontSize: 13)),
-                          subtitle: Text('\u20B9${test.price.toStringAsFixed(0)} • ${test.sampleType}', style: GoogleFonts.sora(fontSize: 11)),
+                          title: Text(test.name,
+                              style: GoogleFonts.sora(fontSize: 13)),
+                          subtitle: Text(
+                              '\u20B9${test.price.toStringAsFixed(0)} • ${test.sampleType}',
+                              style: GoogleFonts.sora(fontSize: 11)),
                           activeColor: AppColors.labPrimary,
                           dense: true,
                           contentPadding: EdgeInsets.zero,
@@ -576,20 +648,25 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
                     _sectionHeader('Preparation Steps'),
                     const SizedBox(height: 8),
                     ..._prepSteps.asMap().entries.map((entry) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Text('${entry.key + 1}.', style: GoogleFonts.sora()),
-                      title: Text(entry.value, style: GoogleFonts.sora(fontSize: 13)),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 18),
-                        onPressed: () => setState(() => _prepSteps.removeAt(entry.key)),
-                      ),
-                    )),
+                          contentPadding: EdgeInsets.zero,
+                          leading: Text('${entry.key + 1}.',
+                              style: GoogleFonts.sora()),
+                          title: Text(entry.value,
+                              style: GoogleFonts.sora(fontSize: 13)),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline,
+                                color: AppColors.error, size: 18),
+                            onPressed: () =>
+                                setState(() => _prepSteps.removeAt(entry.key)),
+                          ),
+                        )),
                     Row(
                       children: [
                         Expanded(
                           child: TextField(
                             controller: _prepStepCtrl,
-                            decoration: _inputDecoration('Add preparation step...'),
+                            decoration:
+                                _inputDecoration('Add preparation step...'),
                             style: GoogleFonts.sora(fontSize: 13),
                           ),
                         ),
@@ -602,7 +679,8 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
                               _prepStepCtrl.clear();
                             }
                           },
-                          icon: const Icon(Icons.add_circle, color: AppColors.labPrimary),
+                          icon: const Icon(Icons.add_circle,
+                              color: AppColors.labPrimary),
                         ),
                       ],
                     ),
@@ -615,13 +693,21 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
                           backgroundColor: AppColors.labPrimary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                         child: _isSubmitting
-                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
                             : Text(
-                                widget.existing == null ? 'Create Package' : 'Update Package',
-                                style: GoogleFonts.sora(fontWeight: FontWeight.bold),
+                                widget.existing == null
+                                    ? 'Create Package'
+                                    : 'Update Package',
+                                style: GoogleFonts.sora(
+                                    fontWeight: FontWeight.bold),
                               ),
                       ),
                     ),
@@ -636,11 +722,14 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
     );
   }
 
-  Widget _field(String label, TextEditingController ctrl, {bool required = false, bool isNumber = false}) {
+  Widget _field(String label, TextEditingController ctrl,
+      {bool required = false, bool isNumber = false}) {
     return TextFormField(
       controller: ctrl,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      validator: required ? (v) => (v == null || v.trim().isEmpty) ? '$label is required' : null : null,
+      validator: required
+          ? (v) => (v == null || v.trim().isEmpty) ? '$label is required' : null
+          : null,
       decoration: _inputDecoration(label),
       style: GoogleFonts.sora(),
     );
@@ -660,6 +749,7 @@ class _PackageFormSheetState extends ConsumerState<_PackageFormSheet> {
   }
 
   Widget _sectionHeader(String text) {
-    return Text(text, style: GoogleFonts.sora(fontSize: 15, fontWeight: FontWeight.bold));
+    return Text(text,
+        style: GoogleFonts.sora(fontSize: 15, fontWeight: FontWeight.bold));
   }
 }
