@@ -12,14 +12,18 @@ import '../../core/utils/responsive.dart';
 import '../../services/remote_config_service.dart';
 import '../../core/widgets/menu_item_tile.dart';
 import '../../core/di/service_providers.dart';
-import '../../models/user_model.dart';
+import '../../models/lab_order_model.dart';
 import '../../models/order_model.dart';
+import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/lab_providers.dart';
 import '../../providers/orders_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
-  const ProfileScreen({super.key});
+  final String? redirectTo;
+
+  const ProfileScreen({super.key, this.redirectTo});
 
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
@@ -74,7 +78,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const AddressBottomSheet(),
+      builder: (context) => AddressBottomSheet(redirectTo: widget.redirectTo),
     );
   }
 
@@ -168,6 +172,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       o.status == OrderStatus.outForDelivery
     ).length;
     final totalOrders = allOrders.length;
+    final allLabOrders = ref.watch(userLabOrdersProvider).valueOrNull ?? [];
+    final activeLabCount = allLabOrders.where((o) =>
+      o.status == LabOrderStatus.pending ||
+      o.status == LabOrderStatus.sampleCollected ||
+      o.status == LabOrderStatus.processing
+    ).length;
     
     return Column(
       children: [
@@ -225,6 +235,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     onTap: () => context.go('/orders'),
                   ),
                   MenuItemTile(
+                    icon: const Icon(Icons.biotech, color: AppColors.labPrimary, size: 18),
+                    iconBg: AppColors.labPrimaryLight,
+                    title: 'My Lab Tests',
+                    subtitle: 'View & track lab bookings',
+                    trailing: activeLabCount > 0
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.labPrimary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '$activeLabCount active',
+                              style: GoogleFonts.sora(
+                                color: AppColors.labPrimary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          )
+                        : null,
+                    onTap: () => context.push('/lab/orders'),
+                  ),
+                  MenuItemTile(
                     icon: const Icon(Icons.location_on_outlined, color: Color(0xFF1E88E5), size: 18),
                     iconBg: const Color(0xFFE3F2FD),
                     title: 'Saved Addresses',
@@ -235,8 +269,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     icon: const Icon(Icons.description_outlined, color: Color(0xFF8E24AA), size: 18),
                     iconBg: const Color(0xFFF3E5F5),
                     title: 'My Prescriptions',
-                    subtitle: 'Uploaded prescriptions',
-                    onTap: () => context.push('/prescription'),
+                    subtitle: 'Medicine prescriptions',
+                    onTap: () => context.push('/my-prescriptions'),
+                  ),
+                  MenuItemTile(
+                    icon: const Icon(Icons.assignment_outlined, color: AppColors.labPrimary, size: 18),
+                    iconBg: AppColors.labPrimaryLight,
+                    title: 'Lab Prescriptions',
+                    subtitle: 'Uploaded lab prescriptions',
+                    onTap: () => context.push('/my-prescriptions?type=lab'),
                   ),
                 ]),
                 const SizedBox(height: 8),
@@ -816,7 +857,9 @@ class _EditProfileBottomSheetState extends ConsumerState<EditProfileBottomSheet>
 }
 
 class AddressBottomSheet extends ConsumerStatefulWidget {
-  const AddressBottomSheet({super.key});
+  final String? redirectTo;
+
+  const AddressBottomSheet({super.key, this.redirectTo});
 
   @override
   ConsumerState<AddressBottomSheet> createState() => _AddressBottomSheetState();
@@ -824,17 +867,22 @@ class AddressBottomSheet extends ConsumerStatefulWidget {
 
 class _AddressBottomSheetState extends ConsumerState<AddressBottomSheet> {
   final _formKey = GlobalKey<FormState>();
+  late TextEditingController _phoneController;
   late TextEditingController _addressController;
   late TextEditingController _pincodeController;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
+    _phoneController = TextEditingController();
     _addressController = TextEditingController();
     _pincodeController = TextEditingController();
 
-    ref.read(currentUserProvider).whenData((user) {
-      if (user != null) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(currentUserProvider).valueOrNull;
+      if (user != null && mounted) {
+        _phoneController.text = user.phone;
         _addressController.text = user.address;
         _pincodeController.text = user.pincode;
       }
@@ -843,9 +891,59 @@ class _AddressBottomSheetState extends ConsumerState<AddressBottomSheet> {
 
   @override
   void dispose() {
+    _phoneController.dispose();
     _addressController.dispose();
     _pincodeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveAddress() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      final user = ref.read(currentUserProvider).value;
+      if (user == null) {
+        throw Exception('User not found');
+      }
+
+      await ref.read(firestoreServiceProvider).updateUser(user.uid, {
+        'phone': _phoneController.text.trim(),
+        'address': _addressController.text.trim(),
+        'pincode': _pincodeController.text.trim(),
+      });
+
+      ref.invalidate(currentUserProvider);
+
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Address saved successfully', style: GoogleFonts.sora())),
+      );
+
+      if (widget.redirectTo == 'cart') {
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted) {
+          context.go('/cart?fromProfile=true');
+        }
+      }
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e', style: GoogleFonts.sora())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -878,6 +976,16 @@ class _AddressBottomSheetState extends ConsumerState<AddressBottomSheet> {
               Text('Saved Addresses', style: GoogleFonts.sora(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
               TextFormField(
+                controller: _phoneController,
+                decoration: InputDecoration(
+                  labelText: 'Phone Number',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                keyboardType: TextInputType.phone,
+                style: GoogleFonts.sora(),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
                 controller: _addressController,
                 decoration: InputDecoration(
                   labelText: 'Address',
@@ -900,17 +1008,26 @@ class _AddressBottomSheetState extends ConsumerState<AddressBottomSheet> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: _isSaving ? null : _saveAddress,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text(
-                    'Save Address',
-                    style: GoogleFonts.sora(fontWeight: FontWeight.w600, fontSize: 16),
-                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          'Save Address',
+                          style: GoogleFonts.sora(fontWeight: FontWeight.w600, fontSize: 16),
+                        ),
                 ),
               ),
             ],

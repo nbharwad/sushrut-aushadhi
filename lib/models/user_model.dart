@@ -13,6 +13,7 @@ class UserModel {
   final bool isAdmin;
   final String role;
   final String? fcmToken;
+  final Map<String, String>? fcmTokens;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final DateTime? lastLoginAt;
@@ -29,6 +30,7 @@ class UserModel {
     this.isAdmin = false,
     this.role = 'customer',
     this.fcmToken,
+    this.fcmTokens,
     required this.createdAt,
     this.updatedAt,
     this.lastLoginAt,
@@ -37,6 +39,16 @@ class UserModel {
             deliveryAddress ?? DeliveryAddress(line1: '', city: '', state: '', pincode: '');
 
   factory UserModel.fromFirestore(Map<String, dynamic> data, String uid) {
+    final fcmTokensData = data['fcmTokens'] as Map<String, dynamic>?;
+    final legacyToken = data['fcmToken'] as String?;
+    
+    Map<String, String>? fcmTokens;
+    if (fcmTokensData != null) {
+      fcmTokens = fcmTokensData.map((key, value) => MapEntry(key, value as String));
+    } else if (legacyToken != null) {
+      fcmTokens = {'default': legacyToken};
+    }
+
     return UserModel(
       uid: uid,
       name: data['name'] ?? '',
@@ -47,7 +59,8 @@ class UserModel {
       deliveryAddress: DeliveryAddress.fromFirestoreData(data['deliveryAddress']),
       isAdmin: data['isAdmin'] ?? false,
       role: data['role'] ?? 'customer',
-      fcmToken: data['fcmToken'],
+      fcmToken: legacyToken,
+      fcmTokens: fcmTokens,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
       lastLoginAt: (data['lastLoginAt'] as Timestamp?)?.toDate(),
@@ -65,6 +78,7 @@ class UserModel {
       'deliveryAddress': deliveryAddress.toMap(),
       'role': role,
       'fcmToken': fcmToken,
+      'fcmTokens': fcmTokens,
       'createdAt': Timestamp.fromDate(createdAt),
       if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
       if (lastLoginAt != null) 'lastLoginAt': Timestamp.fromDate(lastLoginAt!),
@@ -83,6 +97,7 @@ class UserModel {
     bool? isAdmin,
     String? role,
     String? fcmToken,
+    Map<String, String>? fcmTokens,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? lastLoginAt,
@@ -99,6 +114,7 @@ class UserModel {
       isAdmin: isAdmin ?? this.isAdmin,
       role: role ?? this.role,
       fcmToken: fcmToken ?? this.fcmToken,
+      fcmTokens: fcmTokens ?? this.fcmTokens,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
