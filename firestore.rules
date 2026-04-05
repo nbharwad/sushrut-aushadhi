@@ -7,7 +7,7 @@ service cloud.firestore {
     }
 
     function hasRole(role) {
-      return isSignedIn() && get(/databases/{database}/documents/users/$(request.auth.uid)).data.role == role;
+      return isSignedIn() && request.auth.token.role == role;
     }
 
     function isAdmin() {
@@ -19,7 +19,8 @@ service cloud.firestore {
     }
 
     function isAdminOrDelivery() {
-      return isSignedIn() && (get(/databases/{database}/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/{database}/documents/users/$(request.auth.uid)).data.role == 'delivery');
+      return isSignedIn() && 
+        (request.auth.token.role == 'admin' || request.auth.token.role == 'delivery');
     }
 
     function isOwner(userId) {
@@ -155,12 +156,14 @@ service cloud.firestore {
     function isValidLabOrderData() {
       let allowedKeys = ['orderId', 'userId', 'userPhone', 'userName', 'homeCollectionAddress',
                         'tests', 'totalAmount', 'status', 'paymentMethod', 'paymentStatus',
-                        'notes', 'createdAt', 'updatedAt', 'completedAt', 'statusHistory'];
+                        'notes', 'createdAt', 'updatedAt', 'completedAt', 'statusHistory',
+                        'resultUploaded', 'paidAt', 'labResultUrl'];
       return request.resource.data.keys().hasOnly(allowedKeys);
     }
 
     function isValidLabOrderUpdate() {
-      let allowedKeys = ['status', 'notes', 'updatedAt', 'completedAt', 'statusHistory'];
+      let allowedKeys = ['status', 'notes', 'updatedAt', 'completedAt', 'statusHistory',
+                        'resultUploaded', 'labResultUrl', 'paymentStatus', 'paidAt'];
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys);
     }
 

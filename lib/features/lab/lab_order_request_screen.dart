@@ -114,12 +114,12 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
 
     debugPrint('[LabBooking] name="${user.name}" phone="${user.phone}"');
 
-    if (user.name.trim().isEmpty || user.phone.trim().isEmpty) {
+    if (user.name.trim().isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Please complete your profile (name & phone) before booking.',
+            'Please add your name to your profile before booking.',
             style: GoogleFonts.sora(),
           ),
           action: SnackBarAction(
@@ -127,6 +127,37 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
             onPressed: () => context.push('/profile'),
           ),
           duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+
+    if (user.phone.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please add your mobile number to your profile before booking a lab test.',
+            style: GoogleFonts.sora(),
+          ),
+          action: SnackBarAction(
+            label: 'Edit Profile',
+            onPressed: () => context.push('/profile'),
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+
+    if (_isPackageBooking && (widget.packagePrice == null || widget.packagePrice! <= 0)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Package price is unavailable. Please try again.',
+            style: GoogleFonts.sora(),
+          ),
         ),
       );
       return;
@@ -180,16 +211,22 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
 
       // pushReplacement so back from detail goes to orders list, not this form
       context.pushReplacement('/lab-order/$orderId');
-    } catch (e) {
+    } catch (e, stack) {
       if (!mounted) return;
+      debugPrint('[LabBooking] Error: $e');
+      debugPrint('[LabBooking] Stack: $stack');
       final raw = e.toString();
-      final message = raw.contains('Missing required user')
+      final message = raw.contains('Missing mobile number')
+          ? 'Please add your mobile number to your profile before booking a lab test.'
+          : raw.contains('Missing required user')
           ? 'Please complete your profile (name & phone) before booking.'
           : raw.contains('Invalid test count')
               ? 'Please select at least one test.'
               : raw.contains('Invalid total amount')
                   ? 'Total amount is invalid. Please try again.'
-                  : 'Failed to book lab test. Please try again.';
+                  : raw.contains('permission-denied')
+                      ? 'Booking failed due to a permissions error. Please contact support.'
+                      : 'Failed to book lab test. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message, style: GoogleFonts.sora())),
       );
