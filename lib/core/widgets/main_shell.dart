@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../constants/app_colors.dart';
 import '../../providers/cart_provider.dart';
-import '../../providers/notification_provider.dart';
 
 class MainShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -16,7 +15,6 @@ class MainShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cartCount = ref.watch(cartItemCountProvider);
-    final unreadCount = ref.watch(unreadCountProvider);
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final screenHeight = MediaQuery.of(context).size.height;
     
@@ -94,13 +92,9 @@ class MainShell extends ConsumerWidget {
               selectedIcon: Icon(Icons.receipt_long),
               label: 'Orders',
             ),
-            NavigationDestination(
-              icon: unreadCount > 0
-                  ? Badge.count(count: unreadCount, child: const Icon(Icons.person_outline))
-                  : const Icon(Icons.person_outline),
-              selectedIcon: unreadCount > 0
-                  ? Badge.count(count: unreadCount, child: const Icon(Icons.person))
-                  : const Icon(Icons.person),
+            const NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
               label: 'Profile',
             ),
           ],
