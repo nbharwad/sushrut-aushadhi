@@ -85,17 +85,32 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
   }
 
   List<LabTestItem> _getSelectedTestItems(List<LabTestModel> tests) {
-    if (_selectionMode == SelectionMode.packages && _selectedPackage != null) {
-      return _selectedPackage!.testIds.asMap().entries.map((entry) {
-        final testId = entry.value;
-        final matching = tests.where((t) => t.id == testId).toList();
-        if (matching.isNotEmpty) {
-          final test = matching.first;
-          return LabTestItem(
-              testId: test.id, testName: test.name, price: test.price);
-        }
-        return LabTestItem(testId: testId, testName: 'Test', price: 0);
-      }).toList();
+    if (tests.isEmpty) {
+      return [];
+    }
+
+    if (_selectionMode == SelectionMode.packages) {
+      if (_selectedPackage != null) {
+        return _selectedPackage!.testIds.asMap().entries.map((entry) {
+          final testId = entry.value;
+          final matching = tests.where((t) => t.id == testId).toList();
+          if (matching.isNotEmpty) {
+            final test = matching.first;
+            return LabTestItem(
+                testId: test.id, testName: test.name, price: test.price);
+          }
+          return LabTestItem(testId: testId, testName: 'Test', price: 0);
+        }).toList();
+      }
+      // Fallback: handle preselected tests from package detail navigation
+      if (_selectedTests.isNotEmpty) {
+        return tests
+            .where((test) => _selectedTests[test.id] == true)
+            .map((test) => LabTestItem(
+                testId: test.id, testName: test.name, price: test.price))
+            .toList();
+      }
+      return [];
     }
     return tests
         .where((test) => _selectedTests[test.id] == true)
@@ -149,6 +164,18 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
   }
 
   Future<void> _submitOrder(List<LabTestModel> tests, UserModel? user) async {
+    if (tests.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Tests are still loading. Please wait a moment.',
+            style: GoogleFonts.sora(),
+          ),
+        ),
+      );
+      return;
+    }
+
     final selectedItems = _getSelectedTestItems(tests);
     final totalAmount = _getTotalAmount(tests);
 
@@ -454,11 +481,15 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
                           onModeChanged: (mode) {
                             setState(() {
                               _selectionMode = mode;
+                              if (mode == SelectionMode.individualTests) {
+                                _selectedPackage = null;
+                              }
                             });
                           },
                           onPackageSelected: (package) {
                             setState(() {
                               _selectedPackage = package;
+                              _selectionMode = SelectionMode.packages;
                             });
                           },
                           onTestsSelected: (selected) {
