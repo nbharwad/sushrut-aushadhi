@@ -57,6 +57,9 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
 
     if (_isPackageBooking) {
       _selectionMode = SelectionMode.packages;
+      for (final testId in widget.preselectedTestIds) {
+        _selectedTests[testId] = true;
+      }
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -150,8 +153,9 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
     final totalAmount = _getTotalAmount(tests);
 
     final isPackageMode = _selectionMode == SelectionMode.packages;
-    final hasSelection =
-        isPackageMode ? (_selectedPackage != null) : selectedItems.isNotEmpty;
+    final hasSelection = isPackageMode
+        ? (_selectedPackage != null || _selectedTests.isNotEmpty)
+        : selectedItems.isNotEmpty;
 
     if (!hasSelection) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -450,11 +454,6 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
                           onModeChanged: (mode) {
                             setState(() {
                               _selectionMode = mode;
-                              if (mode == SelectionMode.packages) {
-                                _selectedPackage = null;
-                              } else {
-                                _selectedTests.clear();
-                              }
                             });
                           },
                           onPackageSelected: (package) {
@@ -514,7 +513,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
             ConfirmButton(
               isLoading: _isSubmitting,
               isEnabled: (_selectionMode == SelectionMode.packages &&
-                      _selectedPackage != null) ||
+                      (_selectedPackage != null ||
+                          _selectedTests.isNotEmpty)) ||
                   (_selectionMode == SelectionMode.individualTests &&
                       _selectedTests.values.any((v) => v)),
               onPressed: () => _submitOrder(tests, user),

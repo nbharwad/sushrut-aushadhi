@@ -34,175 +34,191 @@ class TestSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final testCount =
-        isPackageBooking ? preselectedTestIds.length : selectedItems.length;
-    final displayTests = _displayTests;
-    final hasMultipleTests = testCount > 1;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final padding = screenWidth * 0.04;
+        final isCompact = screenWidth < 360;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+        final testCount =
+            isPackageBooking ? preselectedTestIds.length : selectedItems.length;
+        final displayTests = _displayTests;
+        final hasMultipleTests = testCount > 1;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.labPrimaryLight,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    isPackageBooking
-                        ? Icons.inventory_2_rounded
-                        : Icons.science_rounded,
-                    color: AppColors.labPrimary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                    padding, padding, padding, padding * 0.75),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(isCompact ? 8 : 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.labPrimaryLight,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
                         isPackageBooking
-                            ? (packageName ?? 'Lab Package')
-                            : 'Selected Tests',
+                            ? Icons.inventory_2_rounded
+                            : Icons.science_rounded,
+                        color: AppColors.labPrimary,
+                        size: isCompact ? 18 : 20,
+                      ),
+                    ),
+                    SizedBox(width: screenWidth * 0.035),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isPackageBooking
+                                ? (packageName ?? 'Lab Package')
+                                : 'Selected Tests',
+                            style: GoogleFonts.sora(
+                              fontSize: isCompact ? 14 : 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          SizedBox(height: screenWidth * 0.005),
+                          Text(
+                            '$testCount ${testCount == 1 ? 'test' : 'tests'}',
+                            style: GoogleFonts.sora(
+                              fontSize: isCompact ? 12 : 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isCompact ? 8 : 12,
+                        vertical: isCompact ? 4 : 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.labPrimary,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '\u20B9${totalAmount.toStringAsFixed(0)}',
                         style: GoogleFonts.sora(
-                          fontSize: 15,
+                          fontSize: isCompact ? 12 : 14,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$testCount ${testCount == 1 ? 'test' : 'tests'}',
-                        style: GoogleFonts.sora(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.labPrimary,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '\u20B9${totalAmount.toStringAsFixed(0)}',
-                    style: GoogleFonts.sora(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+              ),
+              if (displayTests.isNotEmpty) ...[
+                Divider(height: 1),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _showTestsBottomSheet(context),
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(16)),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: padding,
+                        vertical: padding * 0.75,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: displayTests
+                                  .take(3)
+                                  .map((test) => Padding(
+                                        padding: EdgeInsets.only(
+                                            bottom: screenWidth * 0.01),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration: const BoxDecoration(
+                                                color: AppColors.labPrimary,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            SizedBox(width: screenWidth * 0.02),
+                                            Expanded(
+                                              child: Text(
+                                                test,
+                                                style: GoogleFonts.sora(
+                                                  fontSize: isCompact ? 12 : 13,
+                                                  color: AppColors.textPrimary,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ))
+                                  .toList(),
+                            ),
+                          ),
+                          if (hasMultipleTests) ...[
+                            SizedBox(width: screenWidth * 0.02),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isCompact ? 6 : 10,
+                                vertical: isCompact ? 2 : 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.labPrimaryLight,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '+${testCount - 3} more',
+                                    style: GoogleFonts.sora(
+                                      fontSize: isCompact ? 10 : 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.labPrimary,
+                                    ),
+                                  ),
+                                  SizedBox(width: screenWidth * 0.01),
+                                  Icon(
+                                    Icons.expand_more_rounded,
+                                    size: isCompact ? 14 : 16,
+                                    color: AppColors.labPrimary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ],
-            ),
+            ],
           ),
-          if (displayTests.isNotEmpty) ...[
-            const Divider(height: 1),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _showTestsBottomSheet(context),
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(16)),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: displayTests
-                              .take(3)
-                              .map((test) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 4),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 6,
-                                          height: 6,
-                                          decoration: const BoxDecoration(
-                                            color: AppColors.labPrimary,
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            test,
-                                            style: GoogleFonts.sora(
-                                              fontSize: 13,
-                                              color: AppColors.textPrimary,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ))
-                              .toList(),
-                        ),
-                      ),
-                      if (hasMultipleTests) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.labPrimaryLight,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '+${testCount - 3} more',
-                                style: GoogleFonts.sora(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.labPrimary,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(
-                                Icons.expand_more_rounded,
-                                size: 16,
-                                color: AppColors.labPrimary,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 

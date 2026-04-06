@@ -44,93 +44,135 @@ class _TestSelectorState extends State<TestSelector> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final padding = screenWidth * 0.04;
+
+        return Container(
+          margin: EdgeInsets.symmetric(horizontal: padding),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildModeToggle(),
-          const Divider(height: 1),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: _currentMode == SelectionMode.packages
-                ? _buildPackagesSection()
-                : _buildTestsSection(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildModeToggle(padding),
+              Divider(height: 1),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _currentMode == SelectionMode.packages
+                    ? _buildPackagesSection(padding, screenWidth)
+                    : _buildTestsSection(padding),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildModeToggle() {
-    return Padding(
-      padding: const EdgeInsets.all(12),
+  Widget _buildModeToggle(double padding) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 360;
+    final isVeryCompact = screenWidth < 320;
+
+    return Container(
+      margin: EdgeInsets.all(screenWidth * 0.02),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F4F0),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Row(
         children: [
-          _buildTabButton(
+          _buildSegment(
             label: 'Packages',
+            index: 0,
             icon: Icons.inventory_2_rounded,
-            isSelected: _currentMode == SelectionMode.packages,
-            onTap: () => _switchMode(SelectionMode.packages),
+            isCompact: isCompact,
+            isVeryCompact: isVeryCompact,
           ),
-          const SizedBox(width: 12),
-          _buildTabButton(
+          const SizedBox(width: 4),
+          _buildSegment(
             label: 'Individual Tests',
+            index: 1,
             icon: Icons.science_rounded,
-            isSelected: _currentMode == SelectionMode.individualTests,
-            onTap: () => _switchMode(SelectionMode.individualTests),
+            isCompact: isCompact,
+            isVeryCompact: isVeryCompact,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTabButton({
+  Widget _buildSegment({
     required String label,
+    required int index,
     required IconData icon,
-    required bool isSelected,
-    required VoidCallback onTap,
+    required bool isCompact,
+    required bool isVeryCompact,
   }) {
+    final isPackagesSelected = _currentMode == SelectionMode.packages;
+    final isSelected = index == 0 ? isPackagesSelected : !isPackagesSelected;
+
     return Expanded(
       child: GestureDetector(
-        onTap: onTap,
+        onTap: () => _switchMode(
+          index == 0 ? SelectionMode.packages : SelectionMode.individualTests,
+        ),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          padding: EdgeInsets.symmetric(
+            vertical: isVeryCompact ? 8 : 10,
+            horizontal: isVeryCompact ? 4 : (isCompact ? 6 : 8),
+          ),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.labPrimary : const Color(0xFFF8F9F8),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color:
-                  isSelected ? AppColors.labPrimary : const Color(0xFFE8ECE7),
-              width: isSelected ? 1.5 : 1,
-            ),
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 icon,
-                size: 18,
-                color: isSelected ? Colors.white : AppColors.textSecondary,
+                size: isVeryCompact ? 14 : 16,
+                color:
+                    isSelected ? AppColors.labPrimary : AppColors.textSecondary,
               ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: GoogleFonts.sora(
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected ? Colors.white : AppColors.textSecondary,
+              SizedBox(width: isVeryCompact ? 2 : 4),
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.sora(
+                    fontSize: isVeryCompact ? 10 : (isCompact ? 11.5 : 12.5),
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                    color: isSelected
+                        ? AppColors.labPrimary
+                        : AppColors.textSecondary,
+                  ),
                 ),
               ),
             ],
@@ -144,15 +186,11 @@ class _TestSelectorState extends State<TestSelector> {
     if (_currentMode != mode) {
       setState(() => _currentMode = mode);
       widget.onModeChanged(mode);
-      if (mode == SelectionMode.packages) {
-        widget.onPackageSelected(null);
-      } else {
-        widget.onTestsSelected({});
-      }
     }
   }
 
-  Widget _buildPackagesSection() {
+  Widget _buildPackagesSection(
+      [double padding = 16, double screenWidth = 360]) {
     if (widget.packages.isEmpty) {
       return _buildEmptyState(
         icon: Icons.inventory_2_outlined,
@@ -160,11 +198,13 @@ class _TestSelectorState extends State<TestSelector> {
       );
     }
 
+    final cardWidth = screenWidth * 0.45;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: EdgeInsets.fromLTRB(padding, 12, padding, 8),
           child: Text(
             'Select a package',
             style: GoogleFonts.sora(
@@ -178,14 +218,21 @@ class _TestSelectorState extends State<TestSelector> {
           height: 160,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: padding),
             itemCount: widget.packages.length,
             itemBuilder: (context, index) {
               final package = widget.packages[index];
               return _PackageCard(
+                cardWidth: cardWidth,
                 package: package,
                 isSelected: widget.selectedPackage?.id == package.id,
-                onTap: () => widget.onPackageSelected(package),
+                onTap: () {
+                  if (_currentMode != SelectionMode.packages) {
+                    setState(() => _currentMode = SelectionMode.packages);
+                    widget.onModeChanged(SelectionMode.packages);
+                  }
+                  widget.onPackageSelected(package);
+                },
               );
             },
           ),
@@ -195,7 +242,7 @@ class _TestSelectorState extends State<TestSelector> {
     );
   }
 
-  Widget _buildTestsSection() {
+  Widget _buildTestsSection([double padding = 16]) {
     if (widget.tests.isEmpty) {
       return _buildEmptyState(
         icon: Icons.science_outlined,
@@ -207,7 +254,7 @@ class _TestSelectorState extends State<TestSelector> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: EdgeInsets.fromLTRB(padding, 12, padding, 8),
           child: Text(
             'Select tests (multi-select)',
             style: GoogleFonts.sora(
@@ -220,7 +267,7 @@ class _TestSelectorState extends State<TestSelector> {
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: EdgeInsets.symmetric(horizontal: padding),
           itemCount: widget.tests.length,
           itemBuilder: (context, index) {
             final test = widget.tests[index];
@@ -270,20 +317,26 @@ class _PackageCard extends StatelessWidget {
   final LabPackageModel package;
   final bool isSelected;
   final VoidCallback onTap;
+  final double cardWidth;
 
   const _PackageCard({
+    super.key,
     required this.package,
     required this.isSelected,
     required this.onTap,
+    this.cardWidth = 180,
   });
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final width = screenWidth * 0.45;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        width: 180,
+        width: width,
         margin: const EdgeInsets.only(right: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(

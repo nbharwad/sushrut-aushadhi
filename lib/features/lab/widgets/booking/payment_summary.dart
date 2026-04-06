@@ -21,241 +21,255 @@ class PaymentSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final padding = screenWidth * 0.04;
+        final isCompact = screenWidth < 360;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.receipt_long_rounded,
-                    color: AppColors.primary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    'Payment Summary',
-                    style: GoogleFonts.sora(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                    padding, padding, padding, padding * 0.75),
+                child: Row(
                   children: [
-                    Text(
-                      'Selected Tests',
-                      style: GoogleFonts.sora(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
+                    Container(
+                      padding: EdgeInsets.all(isCompact ? 8 : 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.receipt_long_rounded,
+                        color: AppColors.primary,
+                        size: isCompact ? 18 : 20,
                       ),
                     ),
-                    Text(
-                      '$testCount ${testCount == 1 ? 'test' : 'tests'}',
-                      style: GoogleFonts.sora(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                    SizedBox(width: screenWidth * 0.035),
+                    Expanded(
+                      child: Text(
+                        'Payment Summary',
+                        style: GoogleFonts.sora(
+                          fontSize: isCompact ? 14 : 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Subtotal',
-                      style: GoogleFonts.sora(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      '\u20B9${totalAmount.toStringAsFixed(0)}',
-                      style: GoogleFonts.sora(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              ),
+              Divider(height: 1),
+              Padding(
+                padding: EdgeInsets.all(padding),
+                child: Column(
                   children: [
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Home Collection',
+                          'Selected Tests',
                           style: GoogleFonts.sora(
-                            fontSize: 14,
+                            fontSize: isCompact ? 13 : 14,
                             color: AppColors.textSecondary,
                           ),
                         ),
-                        Container(
-                          margin: const EdgeInsets.only(left: 8),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryLight,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'FREE',
-                            style: GoogleFonts.sora(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
+                        Text(
+                          '$testCount ${testCount == 1 ? 'test' : 'tests'}',
+                          style: GoogleFonts.sora(
+                            fontSize: isCompact ? 13 : 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ],
                     ),
-                    Text(
-                      '\u20B90',
-                      style: GoogleFonts.sora(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                if (scheduledDate != null && scheduledTime != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.labPrimaryLight.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
+                    SizedBox(height: screenWidth * 0.03),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(
-                          Icons.schedule_rounded,
-                          size: 18,
-                          color: AppColors.labPrimary,
+                        Text(
+                          'Subtotal',
+                          style: GoogleFonts.sora(
+                            fontSize: isCompact ? 13 : 14,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Scheduled for',
-                                style: GoogleFonts.sora(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                              Text(
-                                '$scheduledDate, $scheduledTime',
-                                style: GoogleFonts.sora(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.labPrimary,
-                                ),
-                              ),
-                            ],
+                        Text(
+                          '\u20B9${totalAmount.toStringAsFixed(0)}',
+                          style: GoogleFonts.sora(
+                            fontSize: isCompact ? 13 : 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                const Divider(),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Total Amount',
-                      style: GoogleFonts.sora(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
+                    SizedBox(height: screenWidth * 0.03),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Home Collection',
+                              style: GoogleFonts.sora(
+                                fontSize: isCompact ? 13 : 14,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            Container(
+                              margin: EdgeInsets.only(left: screenWidth * 0.02),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isCompact ? 4 : 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'FREE',
+                                style: GoogleFonts.sora(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '\u20B90',
+                          style: GoogleFonts.sora(
+                            fontSize: isCompact ? 13 : 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      '\u20B9${totalAmount.toStringAsFixed(0)}',
-                      style: GoogleFonts.sora(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDF4),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.payments_rounded,
-                        size: 16,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Payment: Cash on Collection',
-                        style: GoogleFonts.sora(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.primary,
+                    if (scheduledDate != null && scheduledTime != null) ...[
+                      SizedBox(height: screenWidth * 0.03),
+                      Container(
+                        padding: EdgeInsets.all(padding * 0.75),
+                        decoration: BoxDecoration(
+                          color:
+                              AppColors.labPrimaryLight.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.schedule_rounded,
+                              size: 18,
+                              color: AppColors.labPrimary,
+                            ),
+                            SizedBox(width: screenWidth * 0.025),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Scheduled for',
+                                    style: GoogleFonts.sora(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  Text(
+                                    '$scheduledDate, $scheduledTime',
+                                    style: GoogleFonts.sora(
+                                      fontSize: isCompact ? 12 : 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.labPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
-                  ),
+                    SizedBox(height: screenWidth * 0.04),
+                    Divider(),
+                    SizedBox(height: screenWidth * 0.04),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Total Amount',
+                          style: GoogleFonts.sora(
+                            fontSize: isCompact ? 14 : 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          '\u20B9${totalAmount.toStringAsFixed(0)}',
+                          style: GoogleFonts.sora(
+                            fontSize: isCompact ? 18 : 22,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: screenWidth * 0.03),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isCompact ? 8 : 12,
+                        vertical: isCompact ? 6 : 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.payments_rounded,
+                            size: 16,
+                            color: AppColors.primary,
+                          ),
+                          SizedBox(width: screenWidth * 0.02),
+                          Text(
+                            'Payment: Cash on Collection',
+                            style: GoogleFonts.sora(
+                              fontSize: isCompact ? 10.5 : 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

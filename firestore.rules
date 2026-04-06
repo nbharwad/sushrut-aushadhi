@@ -215,6 +215,15 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly(allowedKeys);
     }
 
+    function isValidLabPackageData() {
+      let allowedKeys = ['name', 'shortDescription', 'category', 'sampleType', 'iconName',
+                        'price', 'originalPrice', 'tatHours', 'fastingHours', 'sortOrder',
+                        'testCount', 'fastingRequired', 'active', 'popular',
+                        'testIds', 'testNames', 'preparationSteps', 'parameters',
+                        'createdAt', 'updatedAt'];
+      return request.resource.data.keys().hasOnly(allowedKeys);
+    }
+
     function isValidCustomerLabCancelUpdate() {
       let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
       let allowedKeys = ['status', 'updatedAt', 'statusHistory', 'cancelReason'];
@@ -240,6 +249,11 @@ service cloud.firestore {
     match /lab_tests/{testId} {
       allow read: if true;  // Allow public read access
       allow create, update, delete: if isAdmin() && isValidLabTestData();
+    }
+
+    match /lab_packages/{packageId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin() && isValidLabPackageData();
     }
 
     match /{document=**} {
