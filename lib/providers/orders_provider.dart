@@ -1,9 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../core/di/service_providers.dart';
 import '../models/order_model.dart';
 import '../services/firestore_service.dart';
 import 'auth_provider.dart';
-import '../core/di/service_providers.dart';
 
 final ordersProvider = StreamProvider<List<OrderModel>>((ref) {
   final firestoreService = ref.watch(firestoreServiceProvider);
@@ -42,8 +43,6 @@ final orderByIdProvider =
 
 final selectedStatusProvider = StateProvider<String?>((ref) => null);
 
-// ── Admin Orders Pagination ────────────────────────────────────────────────
-
 enum PageErrorType {
   none,
   permissionDenied,
@@ -54,11 +53,15 @@ enum PageErrorType {
 }
 
 class AdminOrdersPageState {
+  static const Object _unset = Object();
+
   final List<OrderModel> orders;
   final DocumentSnapshot? lastDoc;
   final bool isLoadingMore;
   final bool hasMore;
   final bool isInitialLoading;
+  final bool isRefreshing;
+  final bool hasLoadedOnce;
   final AdminAuthStatus? authStatus;
   final PageErrorType errorType;
   final String? errorMessage;
@@ -71,6 +74,8 @@ class AdminOrdersPageState {
     this.isLoadingMore = false,
     this.hasMore = true,
     this.isInitialLoading = true,
+    this.isRefreshing = false,
+    this.hasLoadedOnce = false,
     this.authStatus,
     this.errorType = PageErrorType.none,
     this.errorMessage,
@@ -80,28 +85,39 @@ class AdminOrdersPageState {
 
   AdminOrdersPageState copyWith({
     List<OrderModel>? orders,
-    DocumentSnapshot? lastDoc,
+    Object? lastDoc = _unset,
     bool? isLoadingMore,
     bool? hasMore,
     bool? isInitialLoading,
-    AdminAuthStatus? authStatus,
+    bool? isRefreshing,
+    bool? hasLoadedOnce,
+    Object? authStatus = _unset,
     PageErrorType? errorType,
-    String? errorMessage,
+    Object? errorMessage = _unset,
     PageErrorType? paginationError,
-    String? paginationErrorMessage,
+    Object? paginationErrorMessage = _unset,
   }) {
     return AdminOrdersPageState(
       orders: orders ?? this.orders,
-      lastDoc: lastDoc ?? this.lastDoc,
+      lastDoc: identical(lastDoc, _unset)
+          ? this.lastDoc
+          : lastDoc as DocumentSnapshot?,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       hasMore: hasMore ?? this.hasMore,
       isInitialLoading: isInitialLoading ?? this.isInitialLoading,
-      authStatus: authStatus ?? this.authStatus,
+      isRefreshing: isRefreshing ?? this.isRefreshing,
+      hasLoadedOnce: hasLoadedOnce ?? this.hasLoadedOnce,
+      authStatus: identical(authStatus, _unset)
+          ? this.authStatus
+          : authStatus as AdminAuthStatus?,
       errorType: errorType ?? this.errorType,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: identical(errorMessage, _unset)
+          ? this.errorMessage
+          : errorMessage as String?,
       paginationError: paginationError ?? this.paginationError,
-      paginationErrorMessage:
-          paginationErrorMessage ?? this.paginationErrorMessage,
+      paginationErrorMessage: identical(paginationErrorMessage, _unset)
+          ? this.paginationErrorMessage
+          : paginationErrorMessage as String?,
     );
   }
 }
@@ -109,24 +125,44 @@ class AdminOrdersPageState {
 class AdminOrdersPageNotifier extends StateNotifier<AdminOrdersPageState> {
   final FirestoreService _firestoreService;
   static const int _pageSize = 20;
-  int _loadId = 0; // guards against stale appends after refresh
+  int _loadId = 0;
 
-  // Constructor does NOT auto-load — the provider triggers loadFirstPage()
-  // once the admin JWT token is confirmed via roleProvider. This prevents a
-  // permission-denied race condition when the widget builds before the token
-  // refresh completes.
+  bool get hasLoadedOrders => state.hasLoadedOnce;
+
   AdminOrdersPageNotifier(this._firestoreService)
       : super(const AdminOrdersPageState());
 
-  Future<void> loadFirstPage() async {
+  Future<void> loadFirstPage({bool preserveExisting = false}) async {
     final id = ++_loadId;
-    state = const AdminOrdersPageState(); // reset to initial loading state
+    final currentAuthStatus = state.authStatus ?? AdminAuthStatus.admin;
+    final canPreserveUi = preserveExisting && state.hasLoadedOnce;
+
+    state = canPreserveUi
+        ? state.copyWith(
+            authStatus: currentAuthStatus,
+            isInitialLoading: false,
+            isRefreshing: true,
+            isLoadingMore: false,
+            errorType: PageErrorType.none,
+            errorMessage: null,
+            paginationError: PageErrorType.none,
+            paginationErrorMessage: null,
+          )
+        : AdminOrdersPageState(
+            authStatus: currentAuthStatus,
+            isInitialLoading: true,
+          );
+
     try {
       final result =
           await _firestoreService.getOrdersPaginated(limit: _pageSize);
-      if (_loadId != id) return; // stale — a newer refresh started
+      if (_loadId != id) return;
+
       state = state.copyWith(
+        authStatus: AdminAuthStatus.admin,
         isInitialLoading: false,
+        isRefreshing: false,
+        hasLoadedOnce: true,
         orders: result.orders,
         lastDoc: result.lastDoc,
         hasMore: result.orders.length == _pageSize,
@@ -137,10 +173,12 @@ class AdminOrdersPageNotifier extends StateNotifier<AdminOrdersPageState> {
       );
     } catch (e) {
       if (_loadId != id) return;
-      final errorType = _classifyError(e);
+
       state = state.copyWith(
+        authStatus: currentAuthStatus,
         isInitialLoading: false,
-        errorType: errorType,
+        isRefreshing: false,
+        errorType: _classifyError(e),
         errorMessage: e.toString(),
       );
     }
@@ -164,38 +202,55 @@ class AdminOrdersPageNotifier extends StateNotifier<AdminOrdersPageState> {
   }
 
   Future<void> loadNextPage() async {
-    if (state.isLoadingMore || !state.hasMore) return;
+    if (state.isLoadingMore || state.isRefreshing || !state.hasMore) return;
+
     final id = _loadId;
     state = state.copyWith(isLoadingMore: true);
+
     try {
       final result = await _firestoreService.getOrdersPaginated(
-          lastDoc: state.lastDoc, limit: _pageSize);
+        lastDoc: state.lastDoc,
+        limit: _pageSize,
+      );
       if (_loadId != id) return;
+
       state = state.copyWith(
         isLoadingMore: false,
         orders: [...state.orders, ...result.orders],
-        lastDoc: result.lastDoc ?? state.lastDoc,
+        lastDoc: result.lastDoc,
         hasMore: result.orders.length == _pageSize,
         paginationError: PageErrorType.none,
         paginationErrorMessage: null,
       );
     } catch (e) {
       if (_loadId != id) return;
-      final errorType = _classifyError(e);
+
       state = state.copyWith(
         isLoadingMore: false,
-        paginationError: errorType,
+        paginationError: _classifyError(e),
         paginationErrorMessage: e.toString(),
       );
     }
   }
 
-  Future<void> refresh() => loadFirstPage();
+  Future<void> refresh() => loadFirstPage(preserveExisting: true);
 
   void setAuthLoading() {
+    if (state.hasLoadedOnce) {
+      return;
+    }
+
     state = state.copyWith(
       isInitialLoading: true,
       authStatus: AdminAuthStatus.loading,
+    );
+  }
+
+  void setAdminReady() {
+    state = state.copyWith(
+      authStatus: AdminAuthStatus.admin,
+      isInitialLoading: false,
+      isRefreshing: false,
     );
   }
 
@@ -203,6 +258,7 @@ class AdminOrdersPageNotifier extends StateNotifier<AdminOrdersPageState> {
     state = AdminOrdersPageState(
       authStatus: AdminAuthStatus.notAdmin,
       isInitialLoading: false,
+      hasLoadedOnce: state.hasLoadedOnce,
       hasMore: false,
     );
   }
@@ -211,6 +267,7 @@ class AdminOrdersPageNotifier extends StateNotifier<AdminOrdersPageState> {
     state = AdminOrdersPageState(
       authStatus: AdminAuthStatus.error,
       isInitialLoading: false,
+      hasLoadedOnce: state.hasLoadedOnce,
       hasMore: false,
       errorType: PageErrorType.authResolution,
       errorMessage: errorMessage,
@@ -222,24 +279,34 @@ final adminOrdersPageProvider =
     StateNotifierProvider<AdminOrdersPageNotifier, AdminOrdersPageState>((ref) {
   final notifier = AdminOrdersPageNotifier(ref.watch(firestoreServiceProvider));
 
-  // Gate loads on admin auth state - react to all states explicitly
-  ref.listen<AsyncValue<AdminAuthState>>(adminAuthStateProvider,
-      (previous, next) {
+  void handleAdminAuthState(
+    AsyncValue<AdminAuthState> next, {
+    AdminAuthStatus? previousStatus,
+  }) {
     final authState = next.valueOrNull;
 
     if (authState == null || authState.status == AdminAuthStatus.loading) {
-      // Loading - set loading state, do NOT fetch
       notifier.setAuthLoading();
     } else if (authState.status == AdminAuthStatus.notAdmin) {
-      // Not admin - clear data, set denied state
       notifier.setAuthDenied();
     } else if (authState.status == AdminAuthStatus.error) {
-      // Auth error - clear data, set auth error
       notifier.setAuthError(authState.error?.toString());
-    } else if (authState.status == AdminAuthStatus.admin) {
-      // Admin - trigger fetch
+    } else if (previousStatus == AdminAuthStatus.admin &&
+        notifier.hasLoadedOrders) {
+      notifier.setAdminReady();
+    } else {
       notifier.loadFirstPage();
     }
+  }
+
+  handleAdminAuthState(ref.read(adminAuthStateProvider));
+
+  ref.listen<AsyncValue<AdminAuthState>>(adminAuthStateProvider,
+      (previous, next) {
+    handleAdminAuthState(
+      next,
+      previousStatus: previous?.valueOrNull?.status,
+    );
   });
 
   return notifier;

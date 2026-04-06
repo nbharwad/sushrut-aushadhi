@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,27 +33,39 @@ class _AdminPrescriptionsScreenState
   int _medicinePendingCount = 0;
   int _labPendingCount = 0;
 
+  final PrescriptionService _prescriptionService = PrescriptionService();
+  Stream<List<PrescriptionModel>>? _stream;
+  StreamSubscription<List<PrescriptionModel>>? _streamSubscription;
+  List<PrescriptionModel> _allPrescriptions = [];
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+
+    // Create ONE stream; broadcast so StreamBuilder + subscription can both attach
+    _stream = _prescriptionService.getAllPrescriptions().asBroadcastStream();
+
+    // Listen separately just for stats — no addPostFrameCallback, no rebuild loop
+    _streamSubscription = _stream!.listen((prescriptions) {
+      _computeAndSetStats(prescriptions);
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _streamSubscription?.cancel();
     super.dispose();
   }
 
   Future<void> _onRefresh() async {
-    setState(() {});
-    await Future.delayed(const Duration(milliseconds: 500));
+    // Real-time stream auto-updates; no-op is correct here.
   }
 
   @override
   Widget build(BuildContext context) {
-    final isAdminAsync = ref.watch(isAdminFromClaimsProvider);
-    final isAdmin = isAdminAsync.valueOrNull ?? false;
+    final isAdmin = ref.watch(isAdminProvider);
 
     if (!isAdmin) {
       return Scaffold(
@@ -100,14 +114,26 @@ class _AdminPrescriptionsScreenState
           _buildStatsRow(),
           _buildTabBar(),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildPrescriptionList(null),
-                _buildPrescriptionList(PrescriptionStatus.pending),
-                _buildPrescriptionList(PrescriptionStatus.approved),
-                _buildPrescriptionList(PrescriptionStatus.rejected),
-              ],
+            child: StreamBuilder<List<PrescriptionModel>>(
+              stream: _stream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    _allPrescriptions.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildPrescriptionList(null),
+                    _buildPrescriptionList(PrescriptionStatus.pending),
+                    _buildPrescriptionList(PrescriptionStatus.approved),
+                    _buildPrescriptionList(PrescriptionStatus.rejected),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -148,7 +174,7 @@ class _AdminPrescriptionsScreenState
                 Text(
                   'Sushrut Aushadhi · Admin',
                   style: GoogleFonts.sora(
-                    color: Colors.white.withOpacity(0.65),
+                    color: Colors.white.withValues(alpha: 0.65),
                     fontSize: 10,
                   ),
                 ),
@@ -179,7 +205,8 @@ class _AdminPrescriptionsScreenState
                 if (_medicinePendingCount > 0) ...[
                   const SizedBox(width: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.orange,
                       borderRadius: BorderRadius.circular(10),
@@ -207,7 +234,8 @@ class _AdminPrescriptionsScreenState
                 if (_labPendingCount > 0) ...[
                   const SizedBox(width: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.orange,
                       borderRadius: BorderRadius.circular(10),
@@ -233,11 +261,13 @@ class _AdminPrescriptionsScreenState
             _selectedType = newSelection.first;
             _tabController.index = 0;
           });
+          // Recompute stats for the new type from the cached list
+          _computeAndSetStats(_allPrescriptions);
         },
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith<Color?>(
             (states) => states.contains(WidgetState.selected)
-                ? AppColors.primary.withOpacity(0.12)
+                ? AppColors.primary.withValues(alpha: 0.12)
                 : null,
           ),
           foregroundColor: WidgetStateProperty.resolveWith<Color?>(
@@ -256,25 +286,34 @@ class _AdminPrescriptionsScreenState
   Widget _buildStatsRow() {
     final screenWidth = MediaQuery.of(context).size.width;
     final isCompact = screenWidth < 360;
-    
+
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 12, vertical: isCompact ? 8 : 12),
+      padding: EdgeInsets.symmetric(
+          horizontal: isCompact ? 8 : 12, vertical: isCompact ? 8 : 12),
       child: Row(
         children: [
-          Expanded(child: _buildStatCard('Pending', _pendingCount.toString(), Colors.orange, isCompact)),
+          Expanded(
+              child: _buildStatCard('Pending', _pendingCount.toString(),
+                  Colors.orange, isCompact)),
           SizedBox(width: isCompact ? 6 : 8),
-          Expanded(child: _buildStatCard('Approved', _approvedCount.toString(), AppColors.primary, isCompact)),
+          Expanded(
+              child: _buildStatCard('Approved', _approvedCount.toString(),
+                  AppColors.primary, isCompact)),
           SizedBox(width: isCompact ? 6 : 8),
-          Expanded(child: _buildStatCard('Rejected', _rejectedCount.toString(), AppColors.error, isCompact)),
+          Expanded(
+              child: _buildStatCard('Rejected', _rejectedCount.toString(),
+                  AppColors.error, isCompact)),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String label, String value, Color color, bool isCompact) {
+  Widget _buildStatCard(
+      String label, String value, Color color, bool isCompact) {
     return Expanded(
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: isCompact ? 8 : 12, horizontal: isCompact ? 6 : 8),
+        padding: EdgeInsets.symmetric(
+            vertical: isCompact ? 8 : 12, horizontal: isCompact ? 6 : 8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -324,7 +363,8 @@ class _AdminPrescriptionsScreenState
                 if (_pendingCount > 0) ...[
                   const SizedBox(width: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.orange,
                       borderRadius: BorderRadius.circular(10),
@@ -350,73 +390,54 @@ class _AdminPrescriptionsScreenState
   }
 
   Widget _buildPrescriptionList(PrescriptionStatus? status) {
-    // Always stream all prescriptions and filter client-side by type
-    final stream = PrescriptionService().getAllPrescriptions();
+    // Filter from the shared cached list — no per-tab StreamBuilder
+    final byType = _allPrescriptions
+        .where((p) => p.prescriptionType == _selectedType)
+        .toList();
+    final prescriptions = status == null
+        ? byType
+        : byType.where((p) => p.status == status).toList();
+
+    if (prescriptions.isEmpty) {
+      return _buildEmptyState(status);
+    }
 
     return RefreshIndicator(
       color: Colors.white,
       backgroundColor: const Color(0xFF0F6E56),
       strokeWidth: 2.5,
       onRefresh: _onRefresh,
-      child: StreamBuilder<List<PrescriptionModel>>(
-        stream: stream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          final all = snapshot.data ?? [];
-          _updateStats(all);
-
-          // Filter by selected type first, then by status tab
-          final byType = all.where((p) => p.prescriptionType == _selectedType).toList();
-          final prescriptions = status == null
-              ? byType
-              : byType.where((p) => p.status == status).toList();
-
-          if (prescriptions.isEmpty) {
-            return _buildEmptyState(status);
-          }
-
-          return ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(12),
-            itemCount: prescriptions.length,
-            itemBuilder: (context, index) {
-              return _PrescriptionCard(
-                prescription: prescriptions[index],
-                onStatusUpdate: () => setState(() {}),
-              );
-            },
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(12),
+        itemCount: prescriptions.length,
+        itemBuilder: (context, index) {
+          return _PrescriptionCard(
+            prescription: prescriptions[index],
+            onStatusUpdate: () {}, // no-op: stream handles the update
           );
         },
       ),
     );
   }
 
-  void _updateStats(List<PrescriptionModel> all) {
+  void _computeAndSetStats(List<PrescriptionModel> all) {
     int pending = 0;
     int approved = 0;
     int rejected = 0;
     int medicinePending = 0;
     int labPending = 0;
 
-    for (final prescription in all) {
-      // Per-type pending counts (for segment badges)
-      if (prescription.status == PrescriptionStatus.pending) {
-        if (prescription.prescriptionType == PrescriptionType.medicine) {
+    for (final p in all) {
+      if (p.status == PrescriptionStatus.pending) {
+        if (p.prescriptionType == PrescriptionType.medicine) {
           medicinePending++;
         } else {
           labPending++;
         }
       }
-
-      // Status counts for the currently selected type
-      if (prescription.prescriptionType == _selectedType) {
-        switch (prescription.status) {
+      if (p.prescriptionType == _selectedType) {
+        switch (p.status) {
           case PrescriptionStatus.pending:
             pending++;
             break;
@@ -430,9 +451,16 @@ class _AdminPrescriptionsScreenState
       }
     }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Guard: only setState if something actually changed
+    if (pending != _pendingCount ||
+        approved != _approvedCount ||
+        rejected != _rejectedCount ||
+        medicinePending != _medicinePendingCount ||
+        labPending != _labPendingCount ||
+        all.length != _allPrescriptions.length) {
       if (mounted) {
         setState(() {
+          _allPrescriptions = all;
           _pendingCount = pending;
           _approvedCount = approved;
           _rejectedCount = rejected;
@@ -440,7 +468,7 @@ class _AdminPrescriptionsScreenState
           _labPendingCount = labPending;
         });
       }
-    });
+    }
   }
 
   Widget _buildEmptyState(PrescriptionStatus? status) {
@@ -506,7 +534,8 @@ class _PrescriptionCard extends StatelessWidget {
           _buildHeader(),
           _buildCustomerRow(),
           _buildImage(context),
-          if (prescription.status == PrescriptionStatus.pending) _buildActions(context),
+          if (prescription.status == PrescriptionStatus.pending)
+            _buildActions(context),
           _buildFooter(),
         ],
       ),
@@ -549,15 +578,15 @@ class _PrescriptionCard extends StatelessWidget {
 
     switch (prescription.status) {
       case PrescriptionStatus.pending:
-        bgColor = Colors.orange.withOpacity(0.1);
+        bgColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         break;
       case PrescriptionStatus.approved:
-        bgColor = AppColors.primary.withOpacity(0.1);
+        bgColor = AppColors.primary.withValues(alpha: 0.1);
         textColor = AppColors.primary;
         break;
       case PrescriptionStatus.rejected:
-        bgColor = AppColors.error.withOpacity(0.1);
+        bgColor = AppColors.error.withValues(alpha: 0.1);
         textColor = AppColors.error;
         break;
     }
@@ -580,14 +609,15 @@ class _PrescriptionCard extends StatelessWidget {
   }
 
   Widget _buildCustomerRow() {
-    final initials = prescription.userName != null && prescription.userName!.isNotEmpty
-        ? prescription.userName!
-            .split(' ')
-            .map((e) => e.isNotEmpty ? e[0] : '')
-            .take(2)
-            .join()
-            .toUpperCase()
-        : 'CU';
+    final initials =
+        prescription.userName != null && prescription.userName!.isNotEmpty
+            ? prescription.userName!
+                .split(' ')
+                .map((e) => e.isNotEmpty ? e[0] : '')
+                .take(2)
+                .join()
+                .toUpperCase()
+            : 'CU';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -637,7 +667,8 @@ class _PrescriptionCard extends StatelessWidget {
               ],
             ),
           ),
-          if (prescription.userPhone != null && prescription.userPhone!.isNotEmpty)
+          if (prescription.userPhone != null &&
+              prescription.userPhone!.isNotEmpty)
             GestureDetector(
               onTap: () => _launchUrl('tel:${prescription.userPhone}'),
               child: Container(

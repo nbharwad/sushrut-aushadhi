@@ -4,9 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/lab_order_card.dart';
+import '../../core/widgets/lab_filter_chips.dart';
+import '../../core/widgets/lab_orders_loading_shimmer.dart';
 import '../../models/lab_order_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/lab_providers.dart';
+
+final selectedLabFilterProvider = StateProvider<String?>((ref) => null);
 
 class LabOrdersScreen extends ConsumerWidget {
   const LabOrdersScreen({super.key});
@@ -25,7 +30,7 @@ class LabOrdersScreen extends ConsumerWidget {
             if (user == null)
               Expanded(child: _buildLoginPrompt(context))
             else
-              Expanded(child: _buildOrdersList(context, ref)),
+              Expanded(child: _buildOrdersContent(context, ref)),
           ],
         ),
       ),
@@ -84,21 +89,24 @@ class LabOrdersScreen extends ConsumerWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.labPrimaryLight,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.lock_outline, size: 48, color: AppColors.labPrimary),
+              child: const Icon(Icons.lock_outline,
+                  size: 48, color: AppColors.labPrimary),
             ),
             const SizedBox(height: 24),
             Text(
               'Login Required',
-              style: GoogleFonts.sora(fontSize: 20, fontWeight: FontWeight.bold),
+              style:
+                  GoogleFonts.sora(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
               'Please login to view your lab orders',
-              style: GoogleFonts.sora(fontSize: 14, color: AppColors.textSecondary),
+              style: GoogleFonts.sora(
+                  fontSize: 14, color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -107,10 +115,13 @@ class LabOrdersScreen extends ConsumerWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.labPrimary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
-              child: Text('Login', style: GoogleFonts.sora(fontWeight: FontWeight.w600)),
+              child: Text('Login',
+                  style: GoogleFonts.sora(fontWeight: FontWeight.w600)),
             ),
           ],
         ),
@@ -118,198 +129,203 @@ class LabOrdersScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildOrdersList(BuildContext context, WidgetRef ref) {
+  Widget _buildOrdersContent(BuildContext context, WidgetRef ref) {
     final ordersAsync = ref.watch(userLabOrdersProvider);
+    final selectedFilter = ref.watch(selectedLabFilterProvider);
 
     return ordersAsync.when(
       data: (orders) {
-        if (orders.isEmpty) {
-          return _buildEmptyState(context);
-        }
-        return RefreshIndicator(
-          color: Colors.white,
-          backgroundColor: AppColors.labPrimary,
-          onRefresh: () async {
-            ref.invalidate(userLabOrdersProvider);
-            await Future<void>.delayed(const Duration(milliseconds: 400));
-          },
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: orders.length,
-            itemBuilder: (context, index) => _LabOrderListTile(order: orders[index]),
-          ),
+        final filteredOrders = _filterOrders(orders, selectedFilter);
+        final filterCounts = _getFilterCounts(orders);
+
+        return Column(
+          children: [
+            _buildFilterSection(selectedFilter, filterCounts),
+            Expanded(
+              child: filteredOrders.isEmpty
+                  ? _buildEmptyState(context)
+                  : _buildOrdersList(context, ref, filteredOrders),
+            ),
+          ],
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.labPrimary)),
-      error: (error, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-              const SizedBox(height: 16),
-              Text('Could not load orders', style: GoogleFonts.sora(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Text(error.toString(), style: GoogleFonts.sora(fontSize: 12, color: AppColors.textSecondary)),
-            ],
+      loading: () => _buildLoadingState(),
+      error: (error, _) => _buildErrorState(context, ref, error),
+    );
+  }
+
+  Widget _buildFilterSection(String? selectedFilter, Map<String, int> counts) {
+    return Container(
+      color: Colors.white,
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          LabFilterChips(
+            selectedFilter: selectedFilter,
+            onFilterSelected: (filter) {},
+            counts: counts,
           ),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+
+  Map<String, int> _getFilterCounts(List<LabOrderModel> orders) {
+    return {
+      'all': orders.length,
+      'pending': orders.where((o) => o.status == LabOrderStatus.pending).length,
+      'sampleCollected': orders
+          .where((o) => o.status == LabOrderStatus.sampleCollected)
+          .length,
+      'processing':
+          orders.where((o) => o.status == LabOrderStatus.processing).length,
+      'completed':
+          orders.where((o) => o.status == LabOrderStatus.completed).length,
+      'cancelled':
+          orders.where((o) => o.status == LabOrderStatus.cancelled).length,
+    };
+  }
+
+  List<LabOrderModel> _filterOrders(
+      List<LabOrderModel> orders, String? filter) {
+    if (filter == null || filter == 'all') {
+      return orders;
+    }
+    final status = LabOrderStatus.fromString(filter);
+    return orders.where((o) => o.status == status).toList();
+  }
+
+  Widget _buildLoadingState() {
+    return Column(
+      children: [
+        _buildFilterSection(null, {}),
+        const Expanded(
+          child: LabOrdersLoadingList(itemCount: 5),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, WidgetRef ref, Object error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+            const SizedBox(height: 16),
+            Text(
+              'Something went wrong',
+              style:
+                  GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error.toString(),
+              style: GoogleFonts.sora(
+                  fontSize: 14, color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => ref.invalidate(userLabOrdersProvider),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.labPrimary,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.labPrimaryLight,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.biotech_outlined, size: 48, color: AppColors.labPrimary),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No Lab Orders Yet',
-              style: GoogleFonts.sora(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Book your first lab test and get results at home',
-              style: GoogleFonts.sora(fontSize: 14, color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => context.push('/lab/book'),
-              icon: const Icon(Icons.add),
-              label: Text('Book a Lab Test', style: GoogleFonts.sora(fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.labPrimary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LabOrderListTile extends StatelessWidget {
-  final LabOrderModel order;
-
-  const _LabOrderListTile({required this.order});
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = _statusColor(order.status);
-    final shortId = order.orderId.length >= 6
-        ? order.orderId.substring(0, 6).toUpperCase()
-        : order.orderId.toUpperCase();
-
-    return GestureDetector(
-      onTap: () => context.push('/lab-order/${order.orderId}'),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE8ECE7)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(_statusIcon(order.status), color: statusColor, size: 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'SA-LB-$shortId',
-                    style: GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${order.testCount} ${order.testCount == 1 ? 'test' : 'tests'} • \u20B9${order.totalAmount.toStringAsFixed(0)}',
-                    style: GoogleFonts.sora(fontSize: 13, color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      order.status.displayName,
-                      style: GoogleFonts.sora(
-                        color: statusColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+    return RefreshIndicator(
+      color: Colors.white,
+      backgroundColor: AppColors.labPrimary,
+      onRefresh: () async {},
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: const BoxDecoration(
+                        color: AppColors.labPrimaryLight,
+                        shape: BoxShape.circle,
                       ),
+                      child: const Icon(Icons.biotech_rounded,
+                          size: 48, color: AppColors.labPrimary),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 24),
+                    Text(
+                      'No Lab Orders Yet',
+                      style: GoogleFonts.sora(
+                          fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "You haven't booked any lab tests yet.\nBook now to get tested at home!",
+                      style: GoogleFonts.sora(
+                          fontSize: 14, color: AppColors.textSecondary),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => context.push('/lab/book'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.labPrimary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text('Book Lab Test',
+                          style: GoogleFonts.sora(fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Color _statusColor(LabOrderStatus status) {
-    switch (status) {
-      case LabOrderStatus.pending:
-        return Colors.orange;
-      case LabOrderStatus.sampleCollected:
-        return Colors.blue;
-      case LabOrderStatus.processing:
-        return Colors.purple;
-      case LabOrderStatus.completed:
-        return AppColors.labPrimary;
-      case LabOrderStatus.cancelled:
-        return AppColors.error;
-    }
-  }
-
-  IconData _statusIcon(LabOrderStatus status) {
-    switch (status) {
-      case LabOrderStatus.pending:
-        return Icons.hourglass_empty;
-      case LabOrderStatus.sampleCollected:
-        return Icons.bloodtype;
-      case LabOrderStatus.processing:
-        return Icons.science;
-      case LabOrderStatus.completed:
-        return Icons.check_circle;
-      case LabOrderStatus.cancelled:
-        return Icons.cancel;
-    }
+  Widget _buildOrdersList(
+      BuildContext context, WidgetRef ref, List<LabOrderModel> orders) {
+    return RefreshIndicator(
+      color: Colors.white,
+      backgroundColor: AppColors.labPrimary,
+      onRefresh: () async {
+        ref.invalidate(userLabOrdersProvider);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: orders.length,
+        itemBuilder: (context, index) {
+          final order = orders[index];
+          return LabOrderCard(
+            order: order,
+            onTap: () => context.push('/lab/order/${order.orderId}'),
+          );
+        },
+      ),
+    );
   }
 }

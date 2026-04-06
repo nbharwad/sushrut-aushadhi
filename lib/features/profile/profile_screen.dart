@@ -362,12 +362,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   style: GoogleFonts.sora(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF0a2d20),
+                    color: const Color(0xFF0A2D20),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE1F5EE),
                     borderRadius: BorderRadius.circular(20),
@@ -460,9 +461,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 color: color,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Center(
-                child: Text(emoji, style: const TextStyle(fontSize: 26)),
-              ),
+              child: Center(child: _adminCardGlyph(title)),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -544,6 +543,62 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const Icon(
+              Icons.medication_rounded,
+              size: 40,
+              color: AppColors.primary,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              RemoteConfigService.storeName,
+              style: GoogleFonts.sora(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+            Text(
+              AppStrings.appTagline,
+              style: GoogleFonts.sora(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            _aboutRow('ADR', 'Address', RemoteConfigService.storeAddress),
+            _aboutRow('TEL', 'Phone', RemoteConfigService.storePhone),
+            _aboutRow('LIC', 'Drug License', RemoteConfigService.drugLicenseNo),
+            _aboutRow('GST', 'GST No.', RemoteConfigService.gstNumber),
+            _aboutRow('APP', 'App Version', 'v${AppStrings.appVersion}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Close',
+              style: GoogleFonts.sora(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    return;
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        contentPadding: const EdgeInsets.all(20),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             const Text('💊', style: TextStyle(fontSize: 48)),
             const SizedBox(height: 8),
             Text(
@@ -593,7 +648,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 14)),
+          SizedBox(
+            width: 28,
+            child: Text(
+              label.length >= 3 ? label.substring(0, 3).toUpperCase() : label,
+              style: GoogleFonts.sora(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
           const SizedBox(width: 8),
           Text(
             '$label: ',
@@ -615,6 +680,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ],
       ),
     );
+  }
+
+  Widget _adminCardGlyph(String title) {
+    final icon = switch (title) {
+      'Medicine Orders' => Icons.medication_rounded,
+      'Lab Orders' => Icons.science_rounded,
+      'Prescriptions' => Icons.description_outlined,
+      _ => Icons.dashboard_rounded,
+    };
+
+    return Icon(icon, size: 24, color: const Color(0xFF0F6E56));
   }
 }
 

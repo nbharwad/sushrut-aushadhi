@@ -76,7 +76,7 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
                 Text(
                   'Sample collection from your doorstep',
                   style: GoogleFonts.sora(
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                     fontSize: 13,
                   ),
                 ),
@@ -86,13 +86,16 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: AppColors.labPrimary,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                     elevation: 0,
                   ),
                   child: Text(
                     'Book Now',
-                    style: GoogleFonts.sora(fontWeight: FontWeight.bold, fontSize: 13),
+                    style: GoogleFonts.sora(
+                        fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
               ],
@@ -102,7 +105,7 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.biotech, color: Colors.white, size: 48),
@@ -124,7 +127,7 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
           border: Border.all(color: AppColors.labPrimaryLight),
           boxShadow: [
             BoxShadow(
-              color: AppColors.labPrimary.withOpacity(0.06),
+              color: AppColors.labPrimary.withValues(alpha: 0.06),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -138,7 +141,8 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
                 color: AppColors.labPrimaryLight,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.upload_file, color: AppColors.labPrimary, size: 24),
+              child: const Icon(Icons.upload_file,
+                  color: AppColors.labPrimary, size: 24),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -147,11 +151,13 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
                 children: [
                   Text(
                     'Upload Prescription',
-                    style: GoogleFonts.sora(fontSize: 15, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.sora(
+                        fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                   Text(
                     'We\'ll book the recommended tests for you',
-                    style: GoogleFonts.sora(fontSize: 12, color: AppColors.textSecondary),
+                    style: GoogleFonts.sora(
+                        fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -185,12 +191,15 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
                     onTap: () => setState(() => _selectedCategory = cat.$1),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
                         color: isSelected ? AppColors.labPrimary : Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isSelected ? AppColors.labPrimary : const Color(0xFFE8ECE7),
+                          color: isSelected
+                              ? AppColors.labPrimary
+                              : const Color(0xFFE8ECE7),
                         ),
                       ),
                       child: Text(
@@ -198,7 +207,9 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
                         style: GoogleFonts.sora(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: isSelected ? Colors.white : AppColors.textSecondary,
+                          color: isSelected
+                              ? Colors.white
+                              : AppColors.textSecondary,
                         ),
                       ),
                     ),
@@ -227,13 +238,17 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
               children: [
                 Text(
                   'Recommended Packages',
-                  style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.sora(
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 TextButton(
                   onPressed: () => setState(() => _selectedCategory = 'all'),
                   child: Text(
                     'See All',
-                    style: GoogleFonts.sora(color: AppColors.labPrimary, fontWeight: FontWeight.w600, fontSize: 13),
+                    style: GoogleFonts.sora(
+                        color: AppColors.labPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13),
                   ),
                 ),
               ],
@@ -244,7 +259,9 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
             data: (packages) {
               final filtered = _selectedCategory == 'all'
                   ? packages
-                  : packages.where((p) => p.category == _selectedCategory).toList();
+                  : packages
+                      .where((p) => p.category == _selectedCategory)
+                      .toList();
 
               if (filtered.isEmpty) {
                 return Container(
@@ -263,7 +280,8 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
                   scrollDirection: Axis.horizontal,
                   itemCount: filtered.length,
                   padding: const EdgeInsets.only(right: 16),
-                  itemBuilder: (context, index) => _LabPackageCard(package: filtered[index]),
+                  itemBuilder: (context, index) =>
+                      _LabPackageCard(package: filtered[index]),
                 ),
               );
             },
@@ -303,13 +321,17 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
             children: [
               Text(
                 'Individual Tests',
-                style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+                style:
+                    GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               TextButton(
                 onPressed: () => context.push('/lab/book'),
                 child: Text(
                   'Book Tests',
-                  style: GoogleFonts.sora(color: AppColors.labPrimary, fontWeight: FontWeight.w600, fontSize: 13),
+                  style: GoogleFonts.sora(
+                      color: AppColors.labPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13),
                 ),
               ),
             ],
@@ -326,7 +348,9 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
                     border: Border.all(color: const Color(0xFFE8ECE7)),
                   ),
                   child: Center(
-                    child: Text('No tests available', style: GoogleFonts.sora(color: AppColors.textSecondary)),
+                    child: Text('No tests available',
+                        style:
+                            GoogleFonts.sora(color: AppColors.textSecondary)),
                   ),
                 );
               }
@@ -342,12 +366,14 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
                   children: [
                     ...displayed.asMap().entries.map((entry) {
                       final isLast = entry.key == displayed.length - 1;
-                      return _IndividualTestTile(test: entry.value, isLast: isLast);
+                      return _IndividualTestTile(
+                          test: entry.value, isLast: isLast);
                     }),
                     if (tests.length > 5)
                       InkWell(
                         onTap: () => context.push('/lab/book'),
-                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                        borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(16)),
                         child: Padding(
                           padding: const EdgeInsets.all(14),
                           child: Row(
@@ -361,7 +387,8 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
                                   fontSize: 13,
                                 ),
                               ),
-                              const Icon(Icons.chevron_right, color: AppColors.labPrimary, size: 18),
+                              const Icon(Icons.chevron_right,
+                                  color: AppColors.labPrimary, size: 18),
                             ],
                           ),
                         ),
@@ -373,7 +400,8 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
             loading: () => Container(
               height: 60,
               alignment: Alignment.center,
-              child: const CircularProgressIndicator(color: AppColors.labPrimary),
+              child:
+                  const CircularProgressIndicator(color: AppColors.labPrimary),
             ),
             error: (_, __) => const SizedBox.shrink(),
           ),
@@ -405,7 +433,8 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
                   color: AppColors.labPrimaryLight,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.receipt_long, color: AppColors.labPrimary, size: 20),
+                child: const Icon(Icons.receipt_long,
+                    color: AppColors.labPrimary, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -414,11 +443,13 @@ class _LabHomeWidgetState extends ConsumerState<LabHomeWidget> {
                   children: [
                     Text(
                       'My Lab Orders',
-                      style: GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.sora(
+                          fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     Text(
                       'View your test bookings and results',
-                      style: GoogleFonts.sora(fontSize: 12, color: AppColors.textSecondary),
+                      style: GoogleFonts.sora(
+                          fontSize: 12, color: AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -451,7 +482,7 @@ class _LabPackageCard extends StatelessWidget {
           border: Border.all(color: const Color(0xFFE8ECE7)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -468,14 +499,16 @@ class _LabPackageCard extends StatelessWidget {
                     color: AppColors.labPrimaryLight,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.biotech, color: AppColors.labPrimary, size: 20),
+                  child: const Icon(Icons.biotech,
+                      color: AppColors.labPrimary, size: 20),
                 ),
                 const Spacer(),
                 if (package.hasDiscount)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.discountRed.withOpacity(0.12),
+                      color: AppColors.discountRed.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -492,7 +525,8 @@ class _LabPackageCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               package.name,
-              style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.bold),
+              style:
+                  GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.bold),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -501,14 +535,21 @@ class _LabPackageCard extends StatelessWidget {
               children: [
                 Text(
                   '${package.testCount} tests',
-                  style: GoogleFonts.sora(fontSize: 11, color: AppColors.textSecondary),
+                  style: GoogleFonts.sora(
+                      fontSize: 11, color: AppColors.textSecondary),
                 ),
                 const SizedBox(width: 6),
-                Container(width: 3, height: 3, decoration: const BoxDecoration(color: AppColors.textSecondary, shape: BoxShape.circle)),
+                Container(
+                    width: 3,
+                    height: 3,
+                    decoration: const BoxDecoration(
+                        color: AppColors.textSecondary,
+                        shape: BoxShape.circle)),
                 const SizedBox(width: 6),
                 Text(
                   package.tatDisplay,
-                  style: GoogleFonts.sora(fontSize: 11, color: AppColors.textSecondary),
+                  style: GoogleFonts.sora(
+                      fontSize: 11, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -526,18 +567,25 @@ class _LabPackageCard extends StatelessWidget {
               children: [
                 Text(
                   '\u20B9${package.price.toStringAsFixed(0)}',
-                  style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.labPrimary),
+                  style: GoogleFonts.sora(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.labPrimary),
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: AppColors.labPrimary,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     'Book',
-                    style: GoogleFonts.sora(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.sora(
+                        fontSize: 11,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -564,13 +612,32 @@ class _PackageCardShimmer extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(width: 36, height: 36, decoration: BoxDecoration(color: const Color(0xFFEEEEEE), borderRadius: BorderRadius.circular(10))),
+          Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                  color: const Color(0xFFEEEEEE),
+                  borderRadius: BorderRadius.circular(10))),
           const SizedBox(height: 10),
-          Container(height: 14, decoration: BoxDecoration(color: const Color(0xFFEEEEEE), borderRadius: BorderRadius.circular(4))),
+          Container(
+              height: 14,
+              decoration: BoxDecoration(
+                  color: const Color(0xFFEEEEEE),
+                  borderRadius: BorderRadius.circular(4))),
           const SizedBox(height: 6),
-          Container(width: 80, height: 12, decoration: BoxDecoration(color: const Color(0xFFEEEEEE), borderRadius: BorderRadius.circular(4))),
+          Container(
+              width: 80,
+              height: 12,
+              decoration: BoxDecoration(
+                  color: const Color(0xFFEEEEEE),
+                  borderRadius: BorderRadius.circular(4))),
           const Spacer(),
-          Container(height: 20, width: 70, decoration: BoxDecoration(color: const Color(0xFFEEEEEE), borderRadius: BorderRadius.circular(4))),
+          Container(
+              height: 20,
+              width: 70,
+              decoration: BoxDecoration(
+                  color: const Color(0xFFEEEEEE),
+                  borderRadius: BorderRadius.circular(4))),
         ],
       ),
     );
@@ -599,9 +666,11 @@ class _IndividualTestTile extends StatelessWidget {
             color: AppColors.labPrimaryLight,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: const Icon(Icons.science_outlined, color: AppColors.labPrimary, size: 18),
+          child: const Icon(Icons.science_outlined,
+              color: AppColors.labPrimary, size: 18),
         ),
-        title: Text(test.name, style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w600)),
+        title: Text(test.name,
+            style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w600)),
         subtitle: Text(
           '${test.sampleType} • ${test.tatHours}h report',
           style: GoogleFonts.sora(fontSize: 11, color: AppColors.textSecondary),
@@ -612,7 +681,10 @@ class _IndividualTestTile extends StatelessWidget {
           children: [
             Text(
               '\u20B9${test.price.toStringAsFixed(0)}',
-              style: GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.labPrimary),
+              style: GoogleFonts.sora(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.labPrimary),
             ),
           ],
         ),

@@ -22,13 +22,14 @@ final currentUserProvider = StreamProvider<UserModel?>((ref) {
 });
 
 /// Reads the user's role from their JWT custom claims.
-/// Force-refreshes the token to get the latest claims set by Cloud Functions.
+/// Routine reads use cached token claims; explicit claim sync happens in
+/// post-login flows that invalidate this provider after a forced refresh.
 final roleProvider = FutureProvider<String?>((ref) async {
   final authState = ref.watch(authStateProvider);
   final user = authState.valueOrNull;
   if (user == null) return null;
 
-  final idTokenResult = await user.getIdTokenResult(true);
+  final idTokenResult = await user.getIdTokenResult();
   return idTokenResult.claims?['role'] as String?;
 });
 
@@ -69,10 +70,10 @@ class AdminAuthState {
 }
 
 /// Canonical admin auth state provider for critical routing and data-fetch decisions.
-/// - Returns loading while auth or claim refresh is in flight
+/// - Returns loading while auth or claim resolution is in flight
 /// - Returns admin only when JWT claim role is admin
 /// - Returns notAdmin when claims resolve but role is not admin
-/// - Returns error when token refresh/claim resolution throws
+/// - Returns error when claim resolution throws
 final adminAuthStateProvider = FutureProvider<AdminAuthState>((ref) async {
   final authState = ref.watch(authStateProvider);
 
@@ -86,7 +87,7 @@ final adminAuthStateProvider = FutureProvider<AdminAuthState>((ref) async {
   }
 
   try {
-    final idTokenResult = await user.getIdTokenResult(true);
+    final idTokenResult = await user.getIdTokenResult();
     final role = idTokenResult.claims?['role'] as String?;
     return AdminAuthState(
       status:

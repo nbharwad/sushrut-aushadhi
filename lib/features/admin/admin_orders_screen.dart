@@ -67,7 +67,6 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
 
   void _onStatusSelected(String status) {
     setState(() => _selectedStatus = status);
-    ref.read(adminOrdersPageProvider.notifier).loadFirstPage();
   }
 
   void _onSearchChanged(String query) {
@@ -112,7 +111,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final pageState = ref.watch(adminOrdersPageProvider);
-    final stats = pageState.isInitialLoading
+    final stats = pageState.isInitialLoading && !pageState.hasLoadedOnce
         ? _AdminOrderStats.empty()
         : _AdminOrderStats.fromOrders(pageState.orders);
 
@@ -324,7 +323,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   Widget _buildOrdersSliver(AdminOrdersPageState pageState) {
     // Auth loading state
     if (pageState.authStatus == AdminAuthStatus.loading ||
-        pageState.isInitialLoading) {
+        (pageState.isInitialLoading && !pageState.hasLoadedOnce)) {
       return const SliverFillRemaining(
         child: Center(
           child: Column(

@@ -10,7 +10,7 @@ import '../../features/admin/admin_lab_orders_screen.dart';
 import '../../features/admin/admin_lab_packages_screen.dart';
 import '../../features/admin/admin_lab_tests_screen.dart';
 import '../../features/admin/admin_order_detail_screen.dart';
-import '../../features/admin/screens/admin_medicine_screen.dart';
+import '../../features/admin/screens/admin_medicine_simple_screen.dart';
 import '../../features/admin/screens/admin_lab_screen.dart';
 import '../../features/admin/screens/admin_prescription_screen.dart';
 import '../../features/lab/lab_order_detail_screen.dart';
@@ -256,7 +256,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/admin/medicine',
-        builder: (context, state) => const AdminMedicineScreen(),
+        builder: (context, state) => const AdminMedicineSimpleScreen(),
+      ),
+      GoRoute(
+        path: '/admin/medicine-simple',
+        redirect: (context, state) => '/admin/medicine',
       ),
       GoRoute(
         path: '/admin/lab',
@@ -275,7 +279,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final orderId = state.pathParameters['id'];
           if (orderId == null || orderId.isEmpty) {
-            return const AdminMedicineScreen();
+            return const AdminMedicineSimpleScreen();
           }
           return AdminOrderDetailScreen(orderId: orderId);
         },

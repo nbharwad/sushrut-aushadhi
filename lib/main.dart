@@ -29,12 +29,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   final notification = message.notification;
   final data = message.data;
-  
+
   if (notification != null) {
     try {
       final firestore = FirebaseFirestore.instance;
       final docRef = firestore.collection('notifications').doc();
-      
+
       await docRef.set({
         'userId': data['userId'] ?? '',
         'title': notification.title ?? '',
@@ -63,11 +63,12 @@ Future<void> main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
-  
+
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
 
   await FirebaseAppCheck.instance.activate(
-    androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+    androidProvider:
+        kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
     appleProvider: AppleProvider.appAttest,
   );
 
@@ -86,11 +87,12 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  runZonedGuarded<Future<void>>(() async {
-    runApp(const ProviderScope(child: SushrutAushadhiApp()));
-  }, (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack);
-  });
+  FlutterError.onError = (details) {
+    FirebaseCrashlytics.instance.recordFlutterError(details);
+    FlutterError.presentError(details);
+  };
+
+  runApp(const ProviderScope(child: SushrutAushadhiApp()));
 }
 
 class SushrutAushadhiApp extends ConsumerStatefulWidget {
@@ -100,7 +102,8 @@ class SushrutAushadhiApp extends ConsumerStatefulWidget {
   ConsumerState<SushrutAushadhiApp> createState() => _SushrutAushadhiAppState();
 }
 
-class _SushrutAushadhiAppState extends ConsumerState<SushrutAushadhiApp> with WidgetsBindingObserver {
+class _SushrutAushadhiAppState extends ConsumerState<SushrutAushadhiApp>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();

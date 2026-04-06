@@ -4,10 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../cart/widgets/delivery_details_sheet.dart';
 import '../../models/lab_order_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/lab_providers.dart';
+import '../../services/delivery_details_service.dart';
 
 class LabOrderRequestScreen extends ConsumerStatefulWidget {
   final String? packageId;
@@ -24,7 +26,8 @@ class LabOrderRequestScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<LabOrderRequestScreen> createState() => _LabOrderRequestScreenState();
+  ConsumerState<LabOrderRequestScreen> createState() =>
+      _LabOrderRequestScreenState();
 }
 
 class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
@@ -38,16 +41,12 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
   @override
   void initState() {
     super.initState();
-    _isPackageBooking = widget.packageId != null && widget.preselectedTestIds.isNotEmpty;
+    _isPackageBooking =
+        widget.packageId != null && widget.preselectedTestIds.isNotEmpty;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final u = ref.read(currentUserProvider).valueOrNull;
-      if (u == null) return;
-      if (u.address.isNotEmpty) {
-        _addressController.text = u.address;
-      } else if (u.deliveryAddress.line1.isNotEmpty) {
-        _addressController.text = u.deliveryAddress.toDisplayString();
-      }
+      _prefillAddressFromProfile();
+      _prefillAddressFromDeliveryDetails();
     });
   }
 
@@ -73,15 +72,55 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
         final matching = tests.where((t) => t.id == testId).toList();
         if (matching.isNotEmpty) {
           final test = matching.first;
-          return LabTestItem(testId: test.id, testName: test.name, price: test.price);
+          return LabTestItem(
+              testId: test.id, testName: test.name, price: test.price);
         }
         return LabTestItem(testId: testId, testName: 'Test', price: 0);
       }).toList();
     }
     return tests
         .where((test) => _selectedTests[test.id] == true)
-        .map((test) => LabTestItem(testId: test.id, testName: test.name, price: test.price))
+        .map((test) => LabTestItem(
+            testId: test.id, testName: test.name, price: test.price))
         .toList();
+  }
+
+  void _prefillAddressFromProfile() {
+    final user = ref.read(currentUserProvider).valueOrNull;
+    if (user == null || _addressController.text.trim().isNotEmpty) return;
+
+    if (user.address.isNotEmpty) {
+      _addressController.text = user.address;
+    } else if (user.deliveryAddress.line1.isNotEmpty) {
+      _addressController.text = user.deliveryAddress.toDisplayString();
+    }
+  }
+
+  Future<void> _prefillAddressFromDeliveryDetails() async {
+    final details = await DeliveryDetailsService.getDetails();
+    if (!mounted || details.address.trim().isEmpty) return;
+    _addressController.text = details.address.trim();
+  }
+
+  void _showDeliveryDetailsSheet({
+    required List<LabTestModel> tests,
+    required UserModel user,
+    required DeliveryDetails existingDetails,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DeliveryDetailsSheet(
+        existingDetails: existingDetails,
+        onSaved: (details) async {
+          _addressController.text = details.address;
+          await _createLabOrder(tests, user, details);
+        },
+      ),
+    );
   }
 
   Future<void> _submitOrder(List<LabTestModel> tests, UserModel? user) async {
@@ -90,29 +129,22 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
 
     if (selectedItems.isEmpty && !_isPackageBooking) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select at least one test', style: GoogleFonts.sora())),
+        SnackBar(
+            content: Text('Please select at least one test',
+                style: GoogleFonts.sora())),
       );
       return;
     }
 
-    if (_addressController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter your address', style: GoogleFonts.sora())),
-      );
-      return;
-    }
-
-    // Validate user data before showing loading state
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Unable to load your profile. Please try again.', style: GoogleFonts.sora()),
+          content: Text('Unable to load your profile. Please try again.',
+              style: GoogleFonts.sora()),
         ),
       );
       return;
     }
-
-    debugPrint('[LabBooking] name="${user.name}" phone="${user.phone}"');
 
     if (user.name.trim().isEmpty) {
       if (!mounted) return;
@@ -132,25 +164,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
       return;
     }
 
-    if (user.phone.trim().isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Please add your mobile number to your profile before booking a lab test.',
-            style: GoogleFonts.sora(),
-          ),
-          action: SnackBarAction(
-            label: 'Edit Profile',
-            onPressed: () => context.push('/profile'),
-          ),
-          duration: const Duration(seconds: 5),
-        ),
-      );
-      return;
-    }
-
-    if (_isPackageBooking && (widget.packagePrice == null || widget.packagePrice! <= 0)) {
+    if (_isPackageBooking &&
+        (widget.packagePrice == null || widget.packagePrice! <= 0)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -166,22 +181,75 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      final details = await DeliveryDetailsService.getDetails();
+
+      if (!mounted) return;
+
+      if (!details.isComplete) {
+        setState(() => _isSubmitting = false);
+        _showDeliveryDetailsSheet(
+          tests: tests,
+          user: user,
+          existingDetails: details,
+        );
+        return;
+      }
+
+      _addressController.text = details.address;
+      await _createLabOrder(tests, user, details);
+    } catch (e, stack) {
+      if (!mounted) return;
+      if (_isSubmitting) {
+        setState(() => _isSubmitting = false);
+      }
+      debugPrint('[LabBooking] Error: $e');
+      debugPrint('[LabBooking] Stack: $stack');
+      final raw = e.toString();
+      final message = raw.contains('Missing mobile number')
+          ? 'Please complete your mobile number in delivery details before booking a lab test.'
+          : raw.contains('Missing required user')
+              ? 'Please complete your profile before booking.'
+              : raw.contains('Invalid test count')
+                  ? 'Please select at least one test.'
+                  : raw.contains('Invalid total amount')
+                      ? 'Total amount is invalid. Please try again.'
+                      : raw.contains('permission-denied')
+                          ? 'Booking failed due to a permissions error. Please contact support.'
+                          : 'Failed to book lab test. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message, style: GoogleFonts.sora())),
+      );
+    }
+  }
+
+  Future<void> _createLabOrder(
+    List<LabTestModel> tests,
+    UserModel user,
+    DeliveryDetails details,
+  ) async {
+    setState(() => _isSubmitting = true);
+
+    try {
+      final selectedItems = _getSelectedTestItems(tests);
+      final totalAmount = _getTotalAmount(tests);
+
       String? notesText = _notesController.text.trim().isNotEmpty
           ? _notesController.text.trim()
           : null;
 
-      // Tag package bookings in notes for traceability
       if (_isPackageBooking && widget.packageId != null) {
-        final packageNote = 'Package: ${widget.packageName ?? widget.packageId}';
-        notesText = notesText != null ? '$packageNote | $notesText' : packageNote;
+        final packageNote =
+            'Package: ${widget.packageName ?? widget.packageId}';
+        notesText =
+            notesText != null ? '$packageNote | $notesText' : packageNote;
       }
 
       final order = LabOrderModel(
         orderId: '',
         userId: user.uid,
-        userPhone: user.phone,
+        userPhone: details.phone,
         userName: user.name,
-        homeCollectionAddress: _addressController.text.trim(),
+        homeCollectionAddress: details.address,
         tests: selectedItems,
         totalAmount: totalAmount,
         status: LabOrderStatus.pending,
@@ -204,12 +272,12 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Lab order placed successfully!', style: GoogleFonts.sora()),
+          content:
+              Text('Lab order placed successfully!', style: GoogleFonts.sora()),
           backgroundColor: AppColors.labPrimary,
         ),
       );
 
-      // pushReplacement so back from detail goes to orders list, not this form
       context.pushReplacement('/lab-order/$orderId');
     } catch (e, stack) {
       if (!mounted) return;
@@ -217,21 +285,23 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
       debugPrint('[LabBooking] Stack: $stack');
       final raw = e.toString();
       final message = raw.contains('Missing mobile number')
-          ? 'Please add your mobile number to your profile before booking a lab test.'
+          ? 'Please complete your mobile number in delivery details before booking a lab test.'
           : raw.contains('Missing required user')
-          ? 'Please complete your profile (name & phone) before booking.'
-          : raw.contains('Invalid test count')
-              ? 'Please select at least one test.'
-              : raw.contains('Invalid total amount')
-                  ? 'Total amount is invalid. Please try again.'
-                  : raw.contains('permission-denied')
-                      ? 'Booking failed due to a permissions error. Please contact support.'
-                      : 'Failed to book lab test. Please try again.';
+              ? 'Please complete your profile before booking.'
+              : raw.contains('Invalid test count')
+                  ? 'Please select at least one test.'
+                  : raw.contains('Invalid total amount')
+                      ? 'Total amount is invalid. Please try again.'
+                      : raw.contains('permission-denied')
+                          ? 'Booking failed due to a permissions error. Please contact support.'
+                          : 'Failed to book lab test. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message, style: GoogleFonts.sora())),
       );
     } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
@@ -318,7 +388,7 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
                       ? 'Review and confirm your package booking'
                       : 'Select tests and provide address for sample collection',
                   style: GoogleFonts.sora(
-                    color: Colors.white.withOpacity(0.75),
+                    color: Colors.white.withValues(alpha: 0.75),
                     fontSize: 11,
                   ),
                 ),
@@ -352,7 +422,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
                   color: AppColors.labPrimaryLight,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.inventory_2, color: AppColors.labPrimary, size: 20),
+                child: const Icon(Icons.inventory_2,
+                    color: AppColors.labPrimary, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -392,7 +463,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
               ),
               children: widget.preselectedTestIds.map((testId) {
                 final matching = allTests.where((t) => t.id == testId).toList();
-                final testName = matching.isNotEmpty ? matching.first.name : testId;
+                final testName =
+                    matching.isNotEmpty ? matching.first.name : testId;
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Container(
@@ -432,7 +504,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
               const SizedBox(width: 8),
               Text(
                 'Select Tests',
-                style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+                style:
+                    GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -446,7 +519,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.science_outlined, size: 64, color: Color(0xFFBDBDBD)),
+                        const Icon(Icons.science_outlined,
+                            size: 64, color: Color(0xFFBDBDBD)),
                         const SizedBox(height: 16),
                         Text(
                           'No tests available',
@@ -459,7 +533,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
                         const SizedBox(height: 8),
                         Text(
                           'Lab tests will be available soon',
-                          style: GoogleFonts.sora(fontSize: 14, color: AppColors.textSecondary),
+                          style: GoogleFonts.sora(
+                              fontSize: 14, color: AppColors.textSecondary),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
@@ -470,7 +545,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.labPrimary,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
                           ),
                         ),
                       ],
@@ -478,7 +554,9 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
                   ),
                 );
               }
-              return Column(children: testList.map((test) => _buildTestTile(test)).toList());
+              return Column(
+                  children:
+                      testList.map((test) => _buildTestTile(test)).toList());
             },
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(
@@ -486,14 +564,20 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const Icon(Icons.error_outline,
+                        size: 64, color: Colors.red),
                     const SizedBox(height: 16),
                     Text(
                       'Error loading tests',
-                      style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
+                      style: GoogleFonts.sora(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red),
                     ),
                     const SizedBox(height: 8),
-                    Text(e.toString(), style: GoogleFonts.sora(fontSize: 12), textAlign: TextAlign.center),
+                    Text(e.toString(),
+                        style: GoogleFonts.sora(fontSize: 12),
+                        textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: () => ref.invalidate(labTestsProvider),
@@ -502,7 +586,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.labPrimary,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
                       ),
                     ),
                   ],
@@ -525,7 +610,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.labPrimaryLight : const Color(0xFFFAFAFA),
+          color:
+              isSelected ? AppColors.labPrimaryLight : const Color(0xFFFAFAFA),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? AppColors.labPrimary : const Color(0xFFE8ECE7),
@@ -541,10 +627,14 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
                 color: isSelected ? AppColors.labPrimary : Colors.white,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? AppColors.labPrimary : const Color(0xFFBDBDBD),
+                  color: isSelected
+                      ? AppColors.labPrimary
+                      : const Color(0xFFBDBDBD),
                 ),
               ),
-              child: isSelected ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
+              child: isSelected
+                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  : null,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -587,14 +677,16 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
               const SizedBox(width: 8),
               Text(
                 'Sample Collection Address',
-                style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+                style:
+                    GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             'Our phlebotomist will visit this address for sample collection',
-            style: GoogleFonts.sora(fontSize: 12, color: AppColors.textSecondary),
+            style:
+                GoogleFonts.sora(fontSize: 12, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 16),
           TextFormField(
@@ -602,7 +694,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
             maxLines: 3,
             decoration: InputDecoration(
               hintText: 'Enter your full address...',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: AppColors.labPrimary),
@@ -633,7 +726,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
               const SizedBox(width: 8),
               Text(
                 'Additional Notes (Optional)',
-                style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+                style:
+                    GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -643,7 +737,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
             maxLines: 2,
             decoration: InputDecoration(
               hintText: 'Any special instructions (e.g., I am diabetic)...',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: AppColors.labPrimary),
@@ -658,7 +753,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
   }
 
   Widget _buildOrderSummary(List<LabTestModel> tests) {
-    final total = _isPackageBooking ? (widget.packagePrice ?? 0) : _getTotalAmount(tests);
+    final total =
+        _isPackageBooking ? (widget.packagePrice ?? 0) : _getTotalAmount(tests);
     final count = _isPackageBooking
         ? widget.preselectedTestIds.length
         : _getSelectedTestItems(tests).length;
@@ -674,10 +770,13 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Tests', style: GoogleFonts.sora(fontSize: 14, color: AppColors.textSecondary)),
+              Text('Tests',
+                  style: GoogleFonts.sora(
+                      fontSize: 14, color: AppColors.textSecondary)),
               Text(
                 '$count ${count == 1 ? 'test' : 'tests'}',
-                style: GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.bold),
+                style:
+                    GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -689,7 +788,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
             children: [
               Text(
                 'Total Amount',
-                style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+                style:
+                    GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               Text(
                 '\u20B9${total.toStringAsFixed(0)}',
@@ -704,7 +804,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
           const SizedBox(height: 8),
           Text(
             'Payment: Cash on Collection',
-            style: GoogleFonts.sora(fontSize: 12, color: AppColors.textSecondary),
+            style:
+                GoogleFonts.sora(fontSize: 12, color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -719,23 +820,27 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _isSubmitting || !hasTests ? null : () => _submitOrder(tests, user),
+        onPressed:
+            _isSubmitting || !hasTests ? null : () => _submitOrder(tests, user),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.labPrimary,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          disabledBackgroundColor: AppColors.labPrimary.withOpacity(0.5),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          disabledBackgroundColor: AppColors.labPrimary.withValues(alpha: 0.5),
         ),
         child: _isSubmitting
             ? const SizedBox(
                 width: 24,
                 height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
               )
             : Text(
                 'Confirm Booking',
-                style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+                style:
+                    GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
               ),
       ),
     );

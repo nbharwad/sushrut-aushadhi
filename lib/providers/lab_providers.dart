@@ -22,9 +22,16 @@ final userLabOrdersProvider = StreamProvider<List<LabOrderModel>>((ref) {
   return labService.getUserLabOrders(user.uid);
 });
 
-final allLabOrdersProvider = StreamProvider<List<LabOrderModel>>((ref) {
+final allLabOrdersProvider = StreamProvider<List<LabOrderModel>>((ref) async* {
   final labService = ref.watch(labServiceProvider);
-  return labService.getAllLabOrders();
+  final roleAsync = ref.watch(roleProvider);
+  
+  if (roleAsync.valueOrNull != 'admin') {
+    yield [];
+    return;
+  }
+  
+  yield* labService.getAllLabOrders();
 });
 
 final labOrderProvider = StreamProvider.family<LabOrderModel?, String>((ref, orderId) {
