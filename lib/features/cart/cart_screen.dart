@@ -11,10 +11,11 @@ import '../../core/widgets/login_prompt_widget.dart';
 import '../../core/di/service_providers.dart';
 import '../../models/order_model.dart';
 import '../../models/delivery_address.dart';
-import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../services/connectivity_service.dart';
+import '../../services/delivery_details_service.dart';
+import 'widgets/delivery_details_sheet.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   final bool fromProfile;
@@ -29,7 +30,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   final _promoController = TextEditingController();
   String? _appliedPromo;
   bool _isProcessing = false;
-  bool _hasAutoProcessed = false;
 
   @override
   void dispose() {
@@ -52,9 +52,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         elevation: 0,
         leading: Container(
           margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: Colors.grey.shade200, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+              color: Colors.grey.shade200, shape: BoxShape.circle),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary, size: 20),
+            icon: const Icon(Icons.arrow_back,
+                color: AppColors.textPrimary, size: 20),
             onPressed: () => context.pop(),
           ),
         ),
@@ -81,24 +83,25 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   onButtonPressed: () => context.go('/home'),
                 )
               : Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.all(context.isCompactWidth ? 12 : 16),
-                    child: Column(
-                      children: [
-                        if (requiresPrescription) _buildPrescriptionAlert(),
-                        _buildCartItemsList(cartItems),
-                        _buildPromoCodeSection(),
-                        _buildBillSummary(mrpTotal, discount),
-                        _trustFooter(),
-                      ],
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding:
+                            EdgeInsets.all(context.isCompactWidth ? 12 : 16),
+                        child: Column(
+                          children: [
+                            if (requiresPrescription) _buildPrescriptionAlert(),
+                            _buildCartItemsList(cartItems),
+                            _buildPromoCodeSection(),
+                            _buildBillSummary(mrpTotal, discount),
+                            _trustFooter(),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                    _buildStickyBottomBar(cartTotal),
+                  ],
                 ),
-                _buildStickyBottomBar(cartTotal),
-              ],
-            ),
     );
   }
 
@@ -107,7 +110,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.accent.withOpacity(0.1),
+        color: AppColors.accent.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.accent),
       ),
@@ -116,7 +119,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 2),
-            child: Icon(Icons.description_outlined, color: AppColors.accent, size: 22),
+            child: Icon(Icons.description_outlined,
+                color: AppColors.accent, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -129,7 +133,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             onPressed: () => context.push('/prescription?type=medicine'),
-            icon: const Icon(Icons.arrow_forward_ios, color: AppColors.accent, size: 16),
+            icon: const Icon(Icons.arrow_forward_ios,
+                color: AppColors.accent, size: 16),
           ),
         ],
       ),
@@ -158,11 +163,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         ),
         child: const Icon(Icons.delete, color: Colors.white),
       ),
-      onDismissed: (_) => ref.read(cartProvider.notifier).removeItem(item.medicine.id),
+      onDismissed: (_) =>
+          ref.read(cartProvider.notifier).removeItem(item.medicine.id),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+            color: Colors.white, borderRadius: BorderRadius.circular(12)),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isVerySmall = constraints.maxWidth < 340;
@@ -192,7 +199,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             const SizedBox(height: 2),
                             Text(
                               item.medicine.manufacturer,
-                              style: GoogleFonts.sora(fontSize: 10, color: AppColors.textSecondary),
+                              style: GoogleFonts.sora(
+                                  fontSize: 10, color: AppColors.textSecondary),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -213,7 +221,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       ),
                       SizedBox(width: context.adaptiveSpace(6)),
                       GestureDetector(
-                        onTap: () => ref.read(cartProvider.notifier).removeItem(item.medicine.id),
+                        onTap: () => ref
+                            .read(cartProvider.notifier)
+                            .removeItem(item.medicine.id),
                         child: Container(
                           width: 26,
                           height: 26,
@@ -261,7 +271,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       const SizedBox(height: 2),
                       Text(
                         item.medicine.manufacturer,
-                        style: GoogleFonts.sora(fontSize: 10, color: AppColors.textSecondary),
+                        style: GoogleFonts.sora(
+                            fontSize: 10, color: AppColors.textSecondary),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -288,7 +299,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       GestureDetector(
-                        onTap: () => ref.read(cartProvider.notifier).removeItem(item.medicine.id),
+                        onTap: () => ref
+                            .read(cartProvider.notifier)
+                            .removeItem(item.medicine.id),
                         child: Container(
                           width: 26,
                           height: 26,
@@ -403,7 +416,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Center(
-        child: Icon(Icons.medication_rounded, size: 28, color: AppColors.primary),
+        child:
+            Icon(Icons.medication_rounded, size: 28, color: AppColors.primary),
       ),
     );
   }
@@ -412,7 +426,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -430,15 +445,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               final compact = constraints.maxWidth < 360;
               final applyWidget = _appliedPromo != null
                   ? Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.check_circle, color: AppColors.primary, size: 18),
+                          const Icon(Icons.check_circle,
+                              color: AppColors.primary, size: 18),
                           const SizedBox(width: 4),
                           Text(
                             _appliedPromo!,
@@ -498,12 +515,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       style: GoogleFonts.sora(fontSize: 14),
       decoration: InputDecoration(
         hintText: 'Enter promo code',
-        hintStyle: GoogleFonts.sora(fontSize: 14, color: AppColors.textSecondary),
+        hintStyle:
+            GoogleFonts.sora(fontSize: 14, color: AppColors.textSecondary),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Colors.grey.shade300),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
       onChanged: (_) => setState(() {}),
     );
@@ -513,7 +532,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -528,7 +548,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           const SizedBox(height: 12),
           _buildSummaryRow('MRP Total', '\u20B9${mrpTotal.toStringAsFixed(0)}'),
           if (discount > 0)
-            _buildSummaryRow('Discount', '-\u20B9${discount.toStringAsFixed(0)}', isGreen: true),
+            _buildSummaryRow(
+                'Discount', '-\u20B9${discount.toStringAsFixed(0)}',
+                isGreen: true),
           _buildSummaryRow('Delivery', 'FREE', isGreen: true),
           const Divider(height: 24),
           _buildSummaryRow(
@@ -542,13 +564,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.celebration_outlined, size: 14, color: AppColors.primary),
+                  const Icon(Icons.celebration_outlined,
+                      size: 14, color: AppColors.primary),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
@@ -569,7 +592,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  Widget _buildSummaryRow(String label, String value, {bool isBold = false, bool isGreen = false}) {
+  Widget _buildSummaryRow(String label, String value,
+      {bool isBold = false, bool isGreen = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -623,74 +647,81 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             _secureCheckoutBadge(),
             const SizedBox(height: 10),
             LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 360;
-            final priceInfo = Column(
-              crossAxisAlignment: compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Total Payable',
-                  style: GoogleFonts.sora(fontSize: 12, color: AppColors.textSecondary),
-                ),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    '\u20B9${cartTotal.toStringAsFixed(0)}',
-                    style: GoogleFonts.sora(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 360;
+                final priceInfo = Column(
+                  crossAxisAlignment: compact
+                      ? CrossAxisAlignment.center
+                      : CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Total Payable',
+                      style: GoogleFonts.sora(
+                          fontSize: 12, color: AppColors.textSecondary),
                     ),
-                  ),
-                ),
-              ],
-            );
-
-            final action = SizedBox(
-              width: compact ? double.infinity : null,
-              child: ElevatedButton(
-                onPressed: _isProcessing ? null : _placeOrder,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
-                child: _isProcessing
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                    : Text(
-                        'Place Order',
-                        style: GoogleFonts.sora(fontWeight: FontWeight.w600),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '\u20B9${cartTotal.toStringAsFixed(0)}',
+                        style: GoogleFonts.sora(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
-              ),
-            );
+                    ),
+                  ],
+                );
 
-            if (compact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  priceInfo,
-                  const SizedBox(height: 12),
-                  action,
-                ],
-              );
-            }
+                final action = SizedBox(
+                  width: compact ? double.infinity : null,
+                  child: ElevatedButton(
+                    onPressed: _isProcessing ? null : _placeOrder,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    child: _isProcessing
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2),
+                          )
+                        : Text(
+                            'Place Order',
+                            style:
+                                GoogleFonts.sora(fontWeight: FontWeight.w600),
+                          ),
+                  ),
+                );
 
-            return Row(
-              children: [
-                Expanded(child: priceInfo),
-                const SizedBox(width: 12),
-                action,
-              ],
-            );
-          },
-        ),
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      priceInfo,
+                      const SizedBox(height: 12),
+                      action,
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: priceInfo),
+                    const SizedBox(width: 12),
+                    action,
+                  ],
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -765,6 +796,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   Future<void> _placeOrder() async {
+    if (_isProcessing) return;
+
     final isOnline = await ConnectivityService.checkConnection();
     if (!isOnline) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -789,89 +822,69 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
 
     final user = FirebaseAuth.instance.currentUser;
-    final requiresPrescription = ref.read(cartRequiresPrescriptionProvider);
-
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please login to place your order', style: GoogleFonts.sora()),
+          content: Text('Please login to place your order',
+              style: GoogleFonts.sora()),
           backgroundColor: AppColors.primary,
         ),
       );
-      context.push('/login');
+      context.push('/login?from=cart');
       return;
     }
 
-    // Await the latest settled value from the stream — ensures we never validate
-    // against a stale snapshot (e.g. after returning from the profile screen).
-    final UserModel? currentUser = await ref
-        .read(currentUserProvider.future)
-        .catchError((_) => null);
-    if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please login to place your order', style: GoogleFonts.sora()),
-          backgroundColor: AppColors.primary,
-        ),
-      );
-      context.push('/login');
-      return;
-    }
+    setState(() => _isProcessing = true);
 
-    // If returning from profile after saving address, auto-proceed without
-    // re-prompting — data is now fresh so _createOrder will use valid address.
-    if (widget.fromProfile && !_hasAutoProcessed) {
-      _hasAutoProcessed = true;
-      await _createOrder();
-      return;
-    }
+    try {
+      final details = await DeliveryDetailsService.getDetails();
 
-    final hasPhone = currentUser.phone.isNotEmpty;
-    final hasAddressString = currentUser.address.isNotEmpty;
-    final hasDeliveryAddress = currentUser.deliveryAddress.line1.isNotEmpty ||
-        currentUser.deliveryAddress.city.isNotEmpty ||
-        currentUser.deliveryAddress.pincode.isNotEmpty;
-    final hasAddress = hasAddressString || hasDeliveryAddress;
-    final hasPincode = currentUser.pincode.isNotEmpty ||
-        currentUser.deliveryAddress.pincode.isNotEmpty;
+      if (!mounted) return;
 
-    if (!hasPhone || !hasAddress || !hasPincode) {
-      final shouldFillAddress = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Complete Your Profile', style: GoogleFonts.sora(fontWeight: FontWeight.bold)),
-          content: Text(
-            'Please fill in your phone number, address, and pincode to place an order.',
-            style: GoogleFonts.sora(),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text('Cancel', style: GoogleFonts.sora(color: AppColors.textSecondary)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text('Fill Address', style: GoogleFonts.sora(color: AppColors.primary)),
-            ),
-          ],
-        ),
-      );
+      setState(() => _isProcessing = false);
 
-      if (shouldFillAddress == true && mounted) {
-        context.go('/profile?redirectTo=cart');
+      if (!details.isComplete) {
+        _showDeliveryDetailsSheet(existingDetails: details);
+        return;
       }
-      return;
-    }
 
-    if (requiresPrescription) {
-      context.push('/prescription?type=medicine');
-      return;
-    }
+      final requiresPrescription = ref.read(cartRequiresPrescriptionProvider);
+      if (requiresPrescription) {
+        context.push('/prescription?type=medicine');
+        return;
+      }
 
-    await _createOrder();
+      await _createOrder(details);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e', style: GoogleFonts.sora()),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
-  Future<void> _createOrder() async {
+  void _showDeliveryDetailsSheet({DeliveryDetails? existingDetails}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DeliveryDetailsSheet(
+        existingDetails: existingDetails,
+        onSaved: (details) async {
+          await _createOrder(details);
+        },
+      ),
+    );
+  }
+
+  Future<void> _createOrder([DeliveryDetails? details]) async {
     setState(() => _isProcessing = true);
 
     try {
@@ -897,19 +910,32 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         );
       }).toList();
 
-      final deliveryAddress = user.deliveryAddress.line1.isNotEmpty
-          ? user.deliveryAddress
-          : DeliveryAddress(
-              line1: user.address,
-              city: '',
-              state: '',
-              pincode: user.pincode,
-            );
+      final String userPhone;
+      final String userAddress;
+      final String userPincode;
+
+      if (details != null) {
+        userPhone = details.phone;
+        userAddress = details.address;
+        userPincode = details.pincode;
+      } else {
+        userPhone = user.phone;
+        userAddress = user.address;
+        userPincode = user.pincode;
+      }
+
+      final deliveryAddress = DeliveryAddress(
+        line1: userAddress,
+        line2: user.deliveryAddress.line2,
+        city: user.deliveryAddress.city,
+        state: user.deliveryAddress.state,
+        pincode: userPincode,
+      );
 
       final order = OrderModel(
         orderId: '',
         userId: authUser.uid,
-        userPhone: user.phone,
+        userPhone: userPhone,
         userName: user.name.isNotEmpty ? user.name : 'Customer',
         deliveryAddress: deliveryAddress,
         items: orderItemsList,
@@ -918,29 +944,26 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         updatedAt: DateTime.now(),
       );
 
-      final newOrderId = await ref.read(firestoreServiceProvider).placeOrder(order);
-      
-      final shortOrderId = newOrderId.length > 6
-          ? newOrderId.substring(newOrderId.length - 6).toUpperCase()
-          : newOrderId.toUpperCase();
+      final newOrderId =
+          await ref.read(firestoreServiceProvider).placeOrder(order);
 
       if (!mounted) {
         return;
       }
 
-      final itemsData = cartItems.map((item) => {
-        'medicineId': item.medicine.id,
-        'medicineName': item.medicine.name,
-        'price': item.medicine.price,
-        'quantity': item.quantity,
-        'subtotal': item.subtotal,
-      }).toList();
+      final itemsData = cartItems
+          .map((item) => {
+                'medicineId': item.medicine.id,
+                'medicineName': item.medicine.name,
+                'price': item.medicine.price,
+                'quantity': item.quantity,
+                'subtotal': item.subtotal,
+              })
+          .toList();
 
-      final deliveryAddressString = user.deliveryAddress.line1.isNotEmpty
-          ? user.deliveryAddress.toDisplayString()
-          : user.address.isNotEmpty
-              ? user.address
-              : 'Address not provided';
+      final deliveryAddressString = deliveryAddress.toDisplayString().isNotEmpty
+          ? deliveryAddress.toDisplayString()
+          : 'Address not provided';
 
       ref.read(cartProvider.notifier).clearCart();
 
