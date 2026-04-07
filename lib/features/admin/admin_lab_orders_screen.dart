@@ -725,6 +725,68 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
     }
   }
 
+  Future<void> _pickAndUploadFile(
+      BuildContext context, WidgetRef ref, String orderId) async {
+    try {
+      if (_uploadingOrderId != null) return;
+
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        allowMultiple: false,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      if (file.path == null) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('Could not access file', style: GoogleFonts.sora())),
+        );
+        return;
+      }
+
+      if (mounted) {
+        setState(() => _uploadingOrderId = orderId);
+      }
+      final labService = ref.read(labServiceProvider);
+
+      await labService.uploadLabResult(
+        orderId,
+        file.path!,
+        file.name,
+      );
+      await labService.updateLabOrderStatus(
+        orderId,
+        LabOrderStatus.completed,
+        note: 'Lab result uploaded',
+      );
+
+      if (mounted) {
+        setState(() => _uploadingOrderId = null);
+      }
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Lab result uploaded and order completed',
+                style: GoogleFonts.sora())),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploadingOrderId = null);
+      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error uploading: $e', style: GoogleFonts.sora())),
+      );
+    }
+  }
+
   Color _getStatusColor(LabOrderStatus status) {
     switch (status) {
       case LabOrderStatus.pending:
@@ -1239,8 +1301,6 @@ class _AdminLabOrderDetailScreenState
   Future<void> _pickAndUploadFile(
       BuildContext context, WidgetRef ref, String orderId) async {
     try {
-      if (_uploadingOrderId != null) return;
-
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
@@ -1260,24 +1320,21 @@ class _AdminLabOrderDetailScreenState
         return;
       }
 
-      if (mounted) {
-        setState(() => _uploadingOrderId = orderId);
-      }
+      _uploadProgress.value = 0.0;
       final labService = ref.read(labServiceProvider);
 
       await labService.uploadLabResult(
         orderId,
         file.path!,
         file.name,
+        onProgress: (progress) => _uploadProgress.value = progress,
       );
       await labService.updateLabOrderStatus(
         orderId,
         LabOrderStatus.completed,
         note: 'Lab result uploaded',
       );
-      if (mounted) {
-        setState(() => _uploadingOrderId = null);
-      }
+      _uploadProgress.value = null;
 
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1286,9 +1343,7 @@ class _AdminLabOrderDetailScreenState
                 style: GoogleFonts.sora())),
       );
     } catch (e) {
-      if (mounted) {
-        setState(() => _uploadingOrderId = null);
-      }
+      _uploadProgress.value = null;
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
