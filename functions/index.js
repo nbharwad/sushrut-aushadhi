@@ -516,7 +516,17 @@ exports.updateOrderStatus = onCall(async (request) => {
     throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
   }
 
-  const userRole = request.auth.token?.role;
+  // Check role from Firestore user document instead of JWT claims
+  const userId = request.auth.uid;
+  const userDoc = await db.collection('users').doc(userId).get();
+  const userData = userDoc.data();
+  let userRole = 'customer';
+  if (userData?.role === 'admin' || userData?.isAdmin === true) {
+    userRole = 'admin';
+  } else if (userData?.role === 'delivery') {
+    userRole = 'delivery';
+  }
+  
   const isAdmin = userRole === 'admin';
   const isDelivery = userRole === 'delivery';
 
@@ -564,7 +574,7 @@ exports.updateOrderStatus = onCall(async (request) => {
   
   const statusHistoryEntry = {
     status: newStatus,
-    timestamp: FieldValue.serverTimestamp(),
+    timestamp: admin.firestore.Timestamp.now(),
     updatedBy: request.auth.uid,
     role: userRole,
     note: statusNote || '',

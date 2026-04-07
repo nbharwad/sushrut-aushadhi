@@ -1,4 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/order_model.dart';
@@ -39,66 +40,21 @@ class AdminOrderActionsNotifier extends StateNotifier<AdminOrderActionState> {
   Future<bool> updateOrderStatus(
     String orderId,
     OrderStatus newStatus, {
-    String? updatedBy,
+    String? statusNote,
   }) async {
     state = state.copyWith(isLoading: true, error: null, successMessage: null);
 
     try {
-      final orderDoc = await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(orderId)
-          .get();
+      // Force token refresh to get latest custom claims (role: admin)
+      await FirebaseAuth.instance.currentUser?.getIdTokenResult(true);
 
-      if (!orderDoc.exists) {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Order not found',
-        );
-        return false;
-      }
-
-      final orderData = orderDoc.data()!;
-      final currentStatus = orderData['status'] ?? 'pending';
-      final userId = orderData['userId'] ?? '';
-
-      final existingHistory = (orderData['statusHistory'] as List?)
-              ?.map((e) => Map<String, dynamic>.from(e as Map))
-              .toList() ??
-          [];
-
-      existingHistory.add({
-        'status': newStatus.name,
-        'timestamp': FieldValue.serverTimestamp(),
-        'updatedBy': updatedBy ?? 'admin',
-        'role': 'admin',
+      final functions = FirebaseFunctions.instance;
+      await functions.httpsCallable('updateOrderStatus').call(<String, dynamic>{
+        'orderId': orderId,
+        'newStatus': newStatus.name,
+        if (statusNote != null && statusNote.trim().isNotEmpty)
+          'statusNote': statusNote.trim(),
       });
-
-      final updateData = <String, dynamic>{
-        'status': newStatus.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-        'statusHistory': existingHistory,
-      };
-
-      if (newStatus == OrderStatus.delivered) {
-        updateData['deliveredAt'] = FieldValue.serverTimestamp();
-      }
-
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(orderId)
-          .update(updateData);
-
-      if (userId.isNotEmpty && currentStatus != newStatus.name) {
-        await FirebaseFirestore.instance.collection('notifications').add({
-          'userId': userId,
-          'title': 'Order Status Updated',
-          'body': 'Your order has been ${newStatus.displayName.toLowerCase()}.',
-          'type': 'order_status',
-          'orderId': orderId,
-          'isRead': false,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
 
       state = state.copyWith(
         isLoading: false,
@@ -106,6 +62,12 @@ class AdminOrderActionsNotifier extends StateNotifier<AdminOrderActionState> {
       );
 
       return true;
+    } on FirebaseFunctionsException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: _formatFunctionsError(e),
+      );
+      return false;
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -117,6 +79,26 @@ class AdminOrderActionsNotifier extends StateNotifier<AdminOrderActionState> {
 
   void clearState() {
     state = const AdminOrderActionState();
+  }
+
+  String _formatFunctionsError(FirebaseFunctionsException error) {
+    final message = error.message?.trim();
+    if (message != null && message.isNotEmpty) {
+      return message;
+    }
+
+    switch (error.code) {
+      case 'permission-denied':
+        return 'Permission denied while updating the order';
+      case 'not-found':
+        return 'Order not found';
+      case 'invalid-argument':
+        return 'Invalid order status update';
+      case 'unauthenticated':
+        return 'Please sign in again and retry';
+      default:
+        return 'Failed to update order (${error.code})';
+    }
   }
 }
 

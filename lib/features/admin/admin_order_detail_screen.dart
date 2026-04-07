@@ -1,5 +1,4 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,6 +8,7 @@ import '../../services/remote_config_service.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../models/order_model.dart';
+import '../../providers/admin_order_actions_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../services/notification_service.dart';
 import '../../services/whatsapp_service.dart';
@@ -32,15 +32,6 @@ class _AdminOrderDetailScreenState
   OrderStatus? _selectedStatus;
   bool _isUpdating = false;
 
-  static const Map<String, List<String>> validTransitions = {
-    'pending': ['confirmed', 'cancelled'],
-    'confirmed': ['preparing', 'cancelled'],
-    'preparing': ['out_for_delivery', 'cancelled'],
-    'out_for_delivery': ['delivered', 'cancelled'],
-    'delivered': [],
-    'cancelled': [],
-  };
-
   Future<void> _updateStatus() async {
     if (_selectedStatus == null) {
       return;
@@ -55,10 +46,10 @@ class _AdminOrderDetailScreenState
       return;
     }
 
-    final currentStatus = currentOrder.status.name;
     final newStatus = _selectedStatus!.name;
 
-    final allowedTransitions = validTransitions[currentStatus] ?? [];
+    final allowedTransitions =
+        getNextStatuses(currentOrder.status).map((status) => status.name);
     if (!allowedTransitions.contains(newStatus)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -74,24 +65,29 @@ class _AdminOrderDetailScreenState
     setState(() => _isUpdating = true);
 
     try {
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(widget.orderId)
-          .update({
-        'status': newStatus,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      final success = await ref
+          .read(adminOrderActionsProvider.notifier)
+          .updateOrderStatus(widget.orderId, _selectedStatus!);
+
+      if (!success) {
+        if (!mounted) return;
+        final error = ref.read(adminOrderActionsProvider).error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error ?? 'Failed to update order'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
       if (!mounted) {
         return;
       }
+      final messenger = ScaffoldMessenger.of(context);
 
       final order = ref.read(orderByIdProvider(widget.orderId)).value;
       if (order != null) {
-        final shortId = order.orderId.length > 6
-            ? order.orderId.substring(order.orderId.length - 6).toUpperCase()
-            : order.orderId.toUpperCase();
-
         final itemNames = order.items.map((item) => item.medicineName).toList();
 
         try {
@@ -106,7 +102,7 @@ class _AdminOrderDetailScreenState
           );
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger.showSnackBar(
               const SnackBar(
                 content: Text('Status updated! WhatsApp not available.'),
                 backgroundColor: Colors.orange,
@@ -116,7 +112,7 @@ class _AdminOrderDetailScreenState
         }
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Order status updated')),
       );
     } catch (e) {
