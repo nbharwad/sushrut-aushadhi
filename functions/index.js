@@ -9,6 +9,7 @@ admin.initializeApp();
 const db = admin.firestore();
 const auth = admin.auth();
 const FieldValue = admin.firestore.FieldValue;
+const storage = admin.storage();
 
 const NOTIFICATION_TYPES = {
   order_created: 'order_created',
@@ -217,6 +218,18 @@ async function restoreStock(items) {
 function validateStatusTransition(currentStatus, newStatus) {
   const allowedTransitions = VALID_STATUS_TRANSITIONS[currentStatus] || [];
   return allowedTransitions.includes(newStatus);
+}
+
+function extractStoragePathFromDownloadUrl(downloadUrl) {
+  try {
+    const parsed = new URL(downloadUrl);
+    const objectPath = parsed.pathname.split('/o/')[1];
+    if (!objectPath) return null;
+    return decodeURIComponent(objectPath);
+  } catch (error) {
+    console.error('Failed to parse lab report URL:', error);
+    return null;
+  }
 }
 
 exports.validateAndCalculateOrder = onDocumentCreated(
@@ -727,6 +740,58 @@ exports.checkPrescriptionRateLimit = onCall(async (request) => {
   }
   
   return { success: true, remaining: maxPrescriptionsPerDay };
+});
+
+exports.getLabReportAccessUrl = onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
+  }
+
+  const { orderId } = request.data || {};
+  if (!orderId) {
+    throw new functions.https.HttpsError('invalid-argument', 'orderId is required');
+  }
+
+  const orderDoc = await db.collection('labOrders').doc(orderId).get();
+  if (!orderDoc.exists) {
+    throw new functions.https.HttpsError('not-found', 'Lab order not found');
+  }
+
+  const orderData = orderDoc.data();
+  const userDoc = await db.collection('users').doc(request.auth.uid).get();
+  const userRole = userDoc.data()?.role || request.auth.token?.role || 'customer';
+  const isAdmin = userRole === 'admin';
+  const isOwner = orderData.userId === request.auth.uid;
+
+  if (!isAdmin && !isOwner) {
+    throw new functions.https.HttpsError('permission-denied', 'Not allowed to access this report');
+  }
+
+  const storagePath =
+    orderData.labResultPath ||
+    extractStoragePathFromDownloadUrl(orderData.labResultUrl || '');
+
+  if (!storagePath) {
+    throw new functions.https.HttpsError('not-found', 'Lab report not available');
+  }
+
+  const [exists] = await storage.bucket().file(storagePath).exists();
+  if (!exists) {
+    throw new functions.https.HttpsError('not-found', 'Lab report file not found');
+  }
+
+  const expiresAt = Date.now() + (15 * 60 * 1000);
+  const [signedUrl] = await storage.bucket().file(storagePath).getSignedUrl({
+    action: 'read',
+    expires: expiresAt,
+    version: 'v4',
+  });
+
+  return {
+    success: true,
+    url: signedUrl,
+    expiresAt,
+  };
 });
 
 exports.onUserCreated = user().onCreate(async (user) => {

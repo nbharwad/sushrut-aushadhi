@@ -187,6 +187,15 @@ class LabService {
       updateData['completedAt'] = FieldValue.serverTimestamp();
     }
 
+    if (status == LabOrderStatus.sampleCollected) {
+      final orderDoc = await _db.collection('labOrders').doc(orderId).get();
+      final currentPaymentStatus = orderDoc.data()?['paymentStatus'] as String?;
+      if (currentPaymentStatus != 'paid') {
+        updateData['paymentStatus'] = 'paid';
+        updateData['paidAt'] = FieldValue.serverTimestamp();
+      }
+    }
+
     await _db.collection('labOrders').doc(orderId).update(updateData);
 
     if (status == LabOrderStatus.completed) {
@@ -320,6 +329,7 @@ class LabService {
 
       await _db.collection('labOrders').doc(orderId).update({
         'labResultUrl': downloadUrl,
+        'labResultPath': storageRef.fullPath,
         'resultUploaded': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });

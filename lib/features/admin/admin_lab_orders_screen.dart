@@ -9,6 +9,17 @@ import '../../core/widgets/admin_lab_order_card.dart';
 import '../../models/lab_order_model.dart';
 import '../../providers/lab_providers.dart';
 
+String mapAdminLabError(Object error) {
+  final raw = error.toString();
+  if (raw.contains('permission-denied') || raw.contains('Permission denied')) {
+    return 'Permission denied. Ensure the admin account has refreshed admin access and Firebase rules are deployed.';
+  }
+  if (raw.contains('unauthorized') || raw.contains('object-not-found')) {
+    return 'PDF upload failed. Check Firebase Storage rules for lab reports.';
+  }
+  return 'Error: $raw';
+}
+
 class AdminLabOrdersScreen extends ConsumerStatefulWidget {
   const AdminLabOrdersScreen({super.key});
 
@@ -719,8 +730,9 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
       );
     } catch (e) {
       if (!mounted) return;
+      final message = mapAdminLabError(e);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e', style: GoogleFonts.sora())),
+        SnackBar(content: Text(message, style: GoogleFonts.sora())),
       );
     }
   }
@@ -780,9 +792,9 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
         setState(() => _uploadingOrderId = null);
       }
       if (!context.mounted) return;
+      final message = mapAdminLabError(e);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Error uploading: $e', style: GoogleFonts.sora())),
+        SnackBar(content: Text(message, style: GoogleFonts.sora())),
       );
     }
   }
@@ -1345,9 +1357,9 @@ class _AdminLabOrderDetailScreenState
     } catch (e) {
       _uploadProgress.value = null;
       if (!context.mounted) return;
+      final message = mapAdminLabError(e);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Error uploading: $e', style: GoogleFonts.sora())),
+        SnackBar(content: Text(message, style: GoogleFonts.sora())),
       );
     }
   }

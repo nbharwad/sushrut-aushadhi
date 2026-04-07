@@ -200,13 +200,13 @@ service cloud.firestore {
       let allowedKeys = ['orderId', 'userId', 'userPhone', 'userName', 'homeCollectionAddress',
                         'tests', 'totalAmount', 'status', 'paymentMethod', 'paymentStatus',
                         'notes', 'createdAt', 'updatedAt', 'completedAt', 'statusHistory',
-                        'resultUploaded', 'paidAt', 'labResultUrl'];
+                        'resultUploaded', 'paidAt', 'labResultUrl', 'labResultPath'];
       return request.resource.data.keys().hasOnly(allowedKeys);
     }
 
     function isValidLabOrderUpdate() {
       let allowedKeys = ['status', 'notes', 'updatedAt', 'completedAt', 'statusHistory',
-                        'resultUploaded', 'labResultUrl', 'paymentStatus', 'paidAt'];
+                        'resultUploaded', 'labResultUrl', 'labResultPath', 'paymentStatus', 'paidAt'];
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys);
     }
 
