@@ -1,5 +1,4 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +11,7 @@ import '../../core/utils/helpers.dart';
 import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/error_state_widget.dart';
 import '../../models/order_model.dart';
+import '../../providers/admin_order_actions_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../services/whatsapp_service.dart';
@@ -33,6 +33,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   String _searchQuery = '';
   String _sortOrder = 'newest';
   String _selectedStatus = 'all';
+  String _deliveredDateFilter = 'today';
 
   @override
   void initState() {
@@ -89,6 +90,34 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
           order.userPhone.contains(_searchQuery);
     }).toList();
 
+    // Date filter for Delivered tab
+    if (_selectedStatus == 'delivered' && _deliveredDateFilter != 'all') {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      filtered = filtered.where((order) {
+        final deliveredDate = order.deliveredAt ?? order.createdAt;
+        final orderDay = DateTime(
+          deliveredDate.year,
+          deliveredDate.month,
+          deliveredDate.day,
+        );
+
+        switch (_deliveredDateFilter) {
+          case 'today':
+            return orderDay.isAtSameMomentAs(today);
+          case 'week':
+            return deliveredDate
+                .isAfter(today.subtract(const Duration(days: 7)));
+          case 'month':
+            return deliveredDate
+                .isAfter(today.subtract(const Duration(days: 30)));
+          default:
+            return true;
+        }
+      }).toList();
+    }
+
     switch (_sortOrder) {
       case 'oldest':
         filtered.sort((a, b) => a.createdAt.compareTo(b.createdAt));
@@ -105,6 +134,21 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     }
 
     return filtered;
+  }
+
+  Color? _getPendingAgeColor(OrderModel order) {
+    if (order.status != OrderStatus.pending) return null;
+    final age = DateTime.now().difference(order.createdAt);
+    if (age.inMinutes > 60) return AppColors.error;
+    if (age.inMinutes > 30) return const Color(0xFFFFA000);
+    return null;
+  }
+
+  String _getPendingAgeLabel(OrderModel order) {
+    if (order.status != OrderStatus.pending) return '';
+    final age = DateTime.now().difference(order.createdAt);
+    if (age.inHours > 0) return '${age.inHours}h';
+    return '${age.inMinutes}m';
   }
 
   @override
@@ -137,6 +181,10 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
               onSearchChanged: _onSearchChanged,
               onSortChanged: _onSortChanged,
               onStatusSelected: _onStatusSelected,
+              deliveredDateFilter: _deliveredDateFilter,
+              onDeliveredDateFilterChanged: (value) {
+                setState(() => _deliveredDateFilter = value);
+              },
             ),
           ),
 
@@ -283,23 +331,27 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
       (
         label: '${stats.pendingCount}',
         sub: 'Pending',
-        color: AppColors.statusPending
+        color: AppColors.statusPending,
+        status: 'pending'
       ),
       (
         label: '${stats.confirmedCount}',
         sub: 'Confirmed',
-        color: AppColors.statusConfirmed
+        color: AppColors.statusConfirmed,
+        status: 'confirmed'
       ),
       (
         label: '${stats.deliveredTodayCount}',
         sub: 'Delivered Today',
-        color: AppColors.statusDelivered
+        color: AppColors.statusDelivered,
+        status: 'delivered'
       ),
       (
         label:
             'Rs ${stats.todayRevenue < 1000 ? stats.todayRevenue.toStringAsFixed(0) : '${(stats.todayRevenue / 1000).toStringAsFixed(1)}k'}',
         sub: "Today's Rev",
         color: const Color(0xFF80CBC4),
+        status: null
       ),
     ];
 
@@ -311,6 +363,9 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
                 value: item.label,
                 label: item.sub,
                 valueColor: item.color,
+                onTap: item.status != null
+                    ? () => setState(() => _selectedStatus = item.status!)
+                    : null,
               ),
             ),
           )
@@ -534,6 +589,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
 
   Widget _buildCardHeader(OrderModel order) {
     final statusColor = Helpers.getStatusColor(order.status);
+    final ageColor = _getPendingAgeColor(order);
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
       child: Row(
@@ -561,21 +617,54 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-            ),
-            child: Text(
-              order.status.displayName,
-              style: GoogleFonts.sora(
-                color: statusColor,
-                fontWeight: FontWeight.w700,
-                fontSize: 11,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  order.status.displayName,
+                  style: GoogleFonts.sora(
+                    color: statusColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
               ),
-            ),
+              if (ageColor != null) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: ageColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: ageColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.access_time, size: 10, color: ageColor),
+                      const SizedBox(width: 2),
+                      Text(
+                        _getPendingAgeLabel(order),
+                        style: GoogleFonts.sora(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: ageColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),
@@ -987,58 +1076,14 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     }
   }
 
-  Future<void> _updateOrderStatus(String orderId, OrderStatus newStatus,
-      {String? updatedBy}) async {
-    try {
-      final orderDoc = await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(orderId)
-          .get();
-      if (!orderDoc.exists) return;
+  Future<void> _updateOrderStatus(String orderId, OrderStatus newStatus) async {
+    final success = await ref
+        .read(adminOrderActionsProvider.notifier)
+        .updateOrderStatus(orderId, newStatus);
 
-      final orderData = orderDoc.data()!;
-      final currentStatus = orderData['status'] ?? 'pending';
-      final userId = orderData['userId'] ?? '';
+    if (!mounted) return;
 
-      final existingHistory = (orderData['statusHistory'] as List?)
-              ?.map((e) => Map<String, dynamic>.from(e as Map))
-              .toList() ??
-          [];
-      existingHistory.add({
-        'status': newStatus.name,
-        'timestamp': FieldValue.serverTimestamp(),
-        'updatedBy': updatedBy ?? 'admin',
-        'role': 'admin',
-      });
-
-      final updateData = <String, dynamic>{
-        'status': newStatus.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-        'statusHistory': existingHistory,
-      };
-
-      if (newStatus == OrderStatus.delivered) {
-        updateData['deliveredAt'] = FieldValue.serverTimestamp();
-      }
-
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(orderId)
-          .update(updateData);
-
-      if (userId.isNotEmpty && currentStatus != newStatus.name) {
-        await FirebaseFirestore.instance.collection('notifications').add({
-          'userId': userId,
-          'title': 'Order Status Updated',
-          'body': 'Your order has been ${newStatus.displayName.toLowerCase()}.',
-          'type': 'order_status',
-          'orderId': orderId,
-          'isRead': false,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
-
-      if (!mounted) return;
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1047,15 +1092,18 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
           ),
         ),
       );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('Failed to update order: $error', style: GoogleFonts.sora()),
-        ),
-      );
+      return;
     }
+
+    final error = ref.read(adminOrderActionsProvider).error;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          error ?? 'Failed to update order',
+          style: GoogleFonts.sora(),
+        ),
+      ),
+    );
   }
 
   void _showConfirmDialog(OrderModel order) {
@@ -1190,6 +1238,8 @@ class _StickySearchDelegate extends SliverPersistentHeaderDelegate {
     required this.onSearchChanged,
     required this.onSortChanged,
     required this.onStatusSelected,
+    required this.deliveredDateFilter,
+    required this.onDeliveredDateFilterChanged,
   });
 
   final TextEditingController searchController;
@@ -1199,8 +1249,10 @@ class _StickySearchDelegate extends SliverPersistentHeaderDelegate {
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<String> onSortChanged;
   final ValueChanged<String> onStatusSelected;
+  final String deliveredDateFilter;
+  final ValueChanged<String> onDeliveredDateFilterChanged;
 
-  static const double _height = 100;
+  static const double _height = 130;
 
   @override
   double get minExtent => _height;
@@ -1422,8 +1474,51 @@ class _StickySearchDelegate extends SliverPersistentHeaderDelegate {
               },
             ),
           ),
+          // Date filter chips - only for Delivered tab
+          if (selectedStatus == 'delivered')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: SizedBox(
+                height: 32,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _buildDateChip(context, 'All', 'all'),
+                    _buildDateChip(context, 'Today', 'today'),
+                    _buildDateChip(context, 'Week', 'week'),
+                    _buildDateChip(context, 'Month', 'month'),
+                  ],
+                ),
+              ),
+            ),
           const SizedBox(height: 6),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDateChip(BuildContext context, String label, String value) {
+    final isSelected = deliveredDateFilter == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(
+          label,
+          style: GoogleFonts.sora(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        selected: isSelected,
+        onSelected: (_) {
+          onDeliveredDateFilterChanged(value);
+        },
+        backgroundColor: Colors.white,
+        selectedColor: AppColors.primary.withValues(alpha: 0.2),
+        side: BorderSide(
+            color: isSelected ? AppColors.primary : Colors.grey.shade300),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }
@@ -1462,15 +1557,17 @@ class _StatPill extends StatelessWidget {
     required this.value,
     required this.label,
     required this.valueColor,
+    this.onTap,
   });
 
   final String value;
   final String label;
   final Color valueColor;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1492,6 +1589,15 @@ class _StatPill extends StatelessWidget {
         ),
       ],
     );
+
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: content,
+      );
+    }
+    return content;
   }
 }
 

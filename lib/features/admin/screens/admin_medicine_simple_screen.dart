@@ -30,6 +30,7 @@ class _AdminMedicineSimpleScreenState
   String _selectedStatus = 'all';
   String _searchQuery = '';
   String _sortOrder = 'newest';
+  String _deliveredDateFilter = 'today';
 
   _OrderStats _calculateStats(List<OrderModel> orders) {
     final now = DateTime.now();
@@ -43,10 +44,12 @@ class _AdminMedicineSimpleScreenState
     for (final order in orders) {
       if (order.status == OrderStatus.pending) pending++;
       if (order.status == OrderStatus.confirmed) confirmed++;
-      if (order.status == OrderStatus.delivered &&
-          order.createdAt.isAfter(today)) {
-        deliveredToday++;
-        revenueToday += order.totalAmount;
+      if (order.status == OrderStatus.delivered) {
+        final deliveredDate = order.deliveredAt ?? order.createdAt;
+        if (deliveredDate.isAfter(today)) {
+          deliveredToday++;
+          revenueToday += order.totalAmount;
+        }
       }
     }
 
@@ -90,11 +93,40 @@ class _AdminMedicineSimpleScreenState
   }
 
   List<OrderModel> _filteredOrders(List<OrderModel> orders) {
-    final filteredByStatus = _selectedStatus == 'all'
+    var filteredByStatus = _selectedStatus == 'all'
         ? orders
         : orders
             .where((order) => order.status.name == _selectedStatus)
             .toList();
+
+    // Date filter for Delivered tab
+    if (_selectedStatus == 'delivered' && _deliveredDateFilter != 'all') {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      filteredByStatus = filteredByStatus.where((order) {
+        if (order.status != OrderStatus.delivered) return true;
+        final deliveredDate = order.deliveredAt ?? order.createdAt;
+        final orderDay = DateTime(
+          deliveredDate.year,
+          deliveredDate.month,
+          deliveredDate.day,
+        );
+
+        switch (_deliveredDateFilter) {
+          case 'today':
+            return orderDay.isAtSameMomentAs(today);
+          case 'week':
+            return deliveredDate
+                .isAfter(today.subtract(const Duration(days: 7)));
+          case 'month':
+            return deliveredDate
+                .isAfter(today.subtract(const Duration(days: 30)));
+          default:
+            return true;
+        }
+      }).toList();
+    }
 
     List<OrderModel> sorted;
     switch (_sortOrder) {
@@ -126,6 +158,21 @@ class _AdminMedicineSimpleScreenState
           order.userName.toLowerCase().contains(q) ||
           order.userPhone.contains(q);
     }).toList();
+  }
+
+  Color? _getPendingAgeColor(OrderModel order) {
+    if (order.status != OrderStatus.pending) return null;
+    final age = DateTime.now().difference(order.createdAt);
+    if (age.inMinutes > 60) return AppColors.error;
+    if (age.inMinutes > 30) return const Color(0xFFFFA000);
+    return null;
+  }
+
+  String _getPendingAgeLabel(OrderModel order) {
+    if (order.status != OrderStatus.pending) return '';
+    final age = DateTime.now().difference(order.createdAt);
+    if (age.inHours > 0) return '${age.inHours}h';
+    return '${age.inMinutes}m';
   }
 
   @override
@@ -203,6 +250,7 @@ class _AdminMedicineSimpleScreenState
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
                 children: [
                   _buildFilterChip('all', 'All'),
                   _buildFilterChip('pending', 'Pending'),
@@ -213,6 +261,24 @@ class _AdminMedicineSimpleScreenState
                 ],
               ),
             ),
+            if (_selectedStatus == 'delivered')
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: SizedBox(
+                  height: 36,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      _buildDateChip('All', 'all'),
+                      _buildDateChip('Today', 'today'),
+                      _buildDateChip('Week', 'week'),
+                      _buildDateChip('Month', 'month'),
+                    ],
+                  ),
+                ),
+              ),
             const SizedBox(height: 8),
             Expanded(
               child: _buildBody(pageState, visibleOrders),
@@ -319,31 +385,42 @@ class _AdminMedicineSimpleScreenState
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       color: Colors.white,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _StatItem(
-            icon: Icons.inventory_2_outlined,
-            label: 'Pending',
-            value: stats.pending.toString(),
-            color: Colors.orange,
+          Expanded(
+            child: _StatItem(
+              icon: Icons.inventory_2_outlined,
+              label: 'Pending',
+              value: stats.pending.toString(),
+              color: Colors.orange,
+              onTap: () => setState(() => _selectedStatus = 'pending'),
+            ),
           ),
-          _StatItem(
-            icon: Icons.check_circle_outline,
-            label: 'Confirmed',
-            value: stats.confirmed.toString(),
-            color: Colors.blue,
+          Expanded(
+            child: _StatItem(
+              icon: Icons.check_circle_outline,
+              label: 'Confirmed',
+              value: stats.confirmed.toString(),
+              color: Colors.blue,
+              onTap: () => setState(() => _selectedStatus = 'confirmed'),
+            ),
           ),
-          _StatItem(
-            icon: Icons.local_shipping_outlined,
-            label: 'Today',
-            value: stats.deliveredToday.toString(),
-            color: Colors.green,
+          Expanded(
+            child: _StatItem(
+              icon: Icons.local_shipping_outlined,
+              label: 'Today',
+              value: stats.deliveredToday.toString(),
+              color: Colors.green,
+              onTap: () => setState(() => _selectedStatus = 'delivered'),
+            ),
           ),
-          _StatItem(
-            icon: Icons.attach_money,
-            label: 'Revenue',
-            value: '₹${stats.revenueToday.toStringAsFixed(0)}',
-            color: AppColors.primary,
+          Expanded(
+            flex: 2,
+            child: _StatItem(
+              icon: Icons.attach_money,
+              label: 'Revenue',
+              value: '₹${stats.revenueToday.toStringAsFixed(0)}',
+              color: AppColors.primary,
+            ),
           ),
         ],
       ),
@@ -366,6 +443,25 @@ class _AdminMedicineSimpleScreenState
         ),
         backgroundColor: Colors.white,
         side: const BorderSide(color: Color(0xFFDCE5DC)),
+      ),
+    );
+  }
+
+  Widget _buildDateChip(String label, String value) {
+    final isSelected = _deliveredDateFilter == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(
+          label,
+          style: GoogleFonts.sora(fontSize: 11, fontWeight: FontWeight.w500),
+        ),
+        selected: isSelected,
+        onSelected: (_) => setState(() => _deliveredDateFilter = value),
+        selectedColor: AppColors.primary.withOpacity(0.2),
+        side: BorderSide(
+          color: isSelected ? AppColors.primary : Colors.grey.shade300,
+        ),
       ),
     );
   }
@@ -503,6 +599,7 @@ class _AdminMedicineSimpleScreenState
   Widget _buildOrderTile(
       BuildContext context, OrderModel order, bool isWideScreen) {
     final statusColor = Helpers.getStatusColor(order.status);
+    final ageColor = _getPendingAgeColor(order);
     final shortId = order.orderId.length >= 4
         ? order.orderId.substring(0, 4).toUpperCase()
         : order.orderId.toUpperCase();
@@ -578,6 +675,39 @@ class _AdminMedicineSimpleScreenState
                           ),
                         ),
                       ),
+                      if (ageColor != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: ageColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: ageColor.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                size: 10,
+                                color: ageColor,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                _getPendingAgeLabel(order),
+                                style: GoogleFonts.sora(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                  color: ageColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -859,14 +989,16 @@ class _AdminMedicineSimpleScreenState
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.error,
             side: BorderSide(color: AppColors.error.withValues(alpha: 0.6)),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
-          child: Text('Reject', style: GoogleFonts.sora(fontSize: 12)),
+          child: Text('Reject',
+              style:
+                  GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.w600)),
         ),
         const SizedBox(width: 8),
         ElevatedButton(
@@ -874,12 +1006,12 @@ class _AdminMedicineSimpleScreenState
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
           child: Text(
@@ -895,6 +1027,10 @@ class _AdminMedicineSimpleScreenState
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        actionsOverflowButtonSpacing: 8,
         title: Text(
           'Update Status',
           style: GoogleFonts.sora(fontWeight: FontWeight.bold),
@@ -919,6 +1055,9 @@ class _AdminMedicineSimpleScreenState
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: Text('Update', style: GoogleFonts.sora()),
           ),
@@ -962,6 +1101,10 @@ class _AdminMedicineSimpleScreenState
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        actionsOverflowButtonSpacing: 8,
         title: Text(
           'Reject Order',
           style: GoogleFonts.sora(fontWeight: FontWeight.bold),
@@ -1080,17 +1223,19 @@ class _StatItem extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+  final VoidCallback? onTap;
 
   const _StatItem({
     required this.icon,
     required this.label,
     required this.value,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final content = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 20, color: color),
@@ -1112,6 +1257,15 @@ class _StatItem extends StatelessWidget {
         ),
       ],
     );
+
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: content,
+      );
+    }
+    return content;
   }
 }
 
