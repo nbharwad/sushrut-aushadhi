@@ -11,6 +11,7 @@ import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/lab_providers.dart';
 import '../../services/delivery_details_service.dart';
+import 'booking_selection_resolver.dart';
 import 'widgets/booking/booking_widgets.dart';
 
 class LabOrderRequestScreen extends ConsumerStatefulWidget {
@@ -85,38 +86,61 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
   }
 
   List<LabTestItem> _getSelectedTestItems(List<LabTestModel> tests) {
-    if (tests.isEmpty) {
+    final normalizedSelection = _getEffectiveSelectedTests(tests);
+
+    if (tests.isEmpty && _selectionMode != SelectionMode.packages) {
       return [];
     }
 
     if (_selectionMode == SelectionMode.packages) {
-      if (_selectedPackage != null) {
-        return _selectedPackage!.testIds.asMap().entries.map((entry) {
-          final testId = entry.value;
-          final matching = tests.where((t) => t.id == testId).toList();
-          if (matching.isNotEmpty) {
-            final test = matching.first;
-            return LabTestItem(
-                testId: test.id, testName: test.name, price: test.price);
-          }
-          return LabTestItem(testId: testId, testName: 'Test', price: 0);
-        }).toList();
+      final resolvedItems = buildSelectedTestItems(normalizedSelection, tests);
+      if (resolvedItems.isNotEmpty) {
+        return resolvedItems;
       }
-      // Fallback: handle preselected tests from package detail navigation
-      if (_selectedTests.isNotEmpty) {
-        return tests
-            .where((test) => _selectedTests[test.id] == true)
-            .map((test) => LabTestItem(
-                testId: test.id, testName: test.name, price: test.price))
+
+      if (_selectedPackage != null) {
+        if (_selectedPackage!.testNames.isNotEmpty) {
+          return _selectedPackage!.testNames
+              .map((name) => LabTestItem(testId: '', testName: name, price: 0))
+              .toList();
+        }
+
+        return _selectedPackage!.testIds
+            .map((testId) =>
+                LabTestItem(testId: testId, testName: 'Test', price: 0))
             .toList();
       }
+
       return [];
     }
-    return tests
-        .where((test) => _selectedTests[test.id] == true)
-        .map((test) => LabTestItem(
-            testId: test.id, testName: test.name, price: test.price))
-        .toList();
+
+    return buildSelectedTestItems(normalizedSelection, tests);
+  }
+
+  Map<String, bool> _getEffectiveSelectedTests(List<LabTestModel> tests) {
+    if (_selectionMode == SelectionMode.packages && _selectedPackage != null) {
+      final resolvedSelection =
+          resolvePackageTestSelection(_selectedPackage!, tests);
+      if (resolvedSelection.isNotEmpty) {
+        return resolvedSelection;
+      }
+    }
+
+    return Map<String, bool>.from(_selectedTests);
+  }
+
+  void _applyPackageSelection(
+    LabPackageModel package,
+    List<LabTestModel> tests,
+  ) {
+    final resolvedSelection = resolvePackageTestSelection(package, tests);
+    setState(() {
+      _selectedPackage = package;
+      _selectionMode = SelectionMode.packages;
+      _selectedTests
+        ..clear()
+        ..addAll(resolvedSelection);
+    });
   }
 
   void _prefillAddressFromProfile() {
@@ -178,20 +202,25 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
 
     final selectedItems = _getSelectedTestItems(tests);
     final totalAmount = _getTotalAmount(tests);
+    final resolvedSelection = _getEffectiveSelectedTests(tests);
 
     final isPackageMode = _selectionMode == SelectionMode.packages;
     final hasSelection = isPackageMode
-        ? (_selectedPackage != null || _selectedTests.isNotEmpty)
+        ? selectedItems.isNotEmpty
         : selectedItems.isNotEmpty;
 
     if (!hasSelection) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(
-                isPackageMode
+          content: Text(
+            isPackageMode
+                ? (_selectedPackage == null
                     ? 'Please select a package'
-                    : 'Please select at least one test',
-                style: GoogleFonts.sora())),
+                    : 'Selected package has no valid tests. Please choose another package.')
+                : 'Please select at least one test',
+            style: GoogleFonts.sora(),
+          ),
+        ),
       );
       return;
     }
@@ -225,12 +254,16 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
     }
 
     if (_selectionMode == SelectionMode.packages &&
-        (_selectedPackage == null || _selectedPackage!.price <= 0)) {
+        (_selectedPackage == null ||
+            _selectedPackage!.price <= 0 ||
+            resolvedSelection.isEmpty)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Package price is unavailable. Please try again.',
+            _selectedPackage == null || resolvedSelection.isEmpty
+                ? 'Selected package has no valid tests. Please choose another package.'
+                : 'Package price is unavailable. Please try again.',
             style: GoogleFonts.sora(),
           ),
         ),
@@ -279,7 +312,9 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
           : raw.contains('Missing required user')
               ? 'Please complete your profile before booking.'
               : raw.contains('Invalid test count')
-                  ? 'Please select at least one test.'
+                  ? (_selectionMode == SelectionMode.packages
+                      ? 'Selected package has no valid tests. Please choose another package.'
+                      : 'Please select at least one test.')
                   : raw.contains('Invalid total amount')
                       ? 'Total amount is invalid. Please try again.'
                       : raw.contains('permission-denied')
@@ -365,7 +400,9 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
           : raw.contains('Missing required user')
               ? 'Please complete your profile before booking.'
               : raw.contains('Invalid test count')
-                  ? 'Please select at least one test.'
+                  ? (_selectionMode == SelectionMode.packages
+                      ? 'Selected package has no valid tests. Please choose another package.'
+                      : 'Please select at least one test.')
                   : raw.contains('Invalid total amount')
                       ? 'Total amount is invalid. Please try again.'
                       : raw.contains('permission-denied')
@@ -455,9 +492,7 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
         final foundPackage =
             packages.where((p) => p.id == widget.packageId).firstOrNull;
         if (foundPackage != null && mounted) {
-          setState(() {
-            _selectedPackage = foundPackage;
-          });
+          _applyPackageSelection(foundPackage, tests);
         }
       });
     }
@@ -502,10 +537,9 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
                             });
                           },
                           onPackageSelected: (package) {
-                            setState(() {
-                              _selectedPackage = package;
-                              _selectionMode = SelectionMode.packages;
-                            });
+                            if (package != null) {
+                              _applyPackageSelection(package, testList);
+                            }
                           },
                           onTestsSelected: (selected) {
                             setState(() {
