@@ -322,7 +322,7 @@ class LabOrdersScreen extends ConsumerWidget {
           final order = orders[index];
           return LabOrderCard(
             order: order,
-            onTap: () => context.push('/lab/order/${order.orderId}'),
+            onTap: () => context.push('/lab-order/${order.orderId}'),
           );
         },
       ),

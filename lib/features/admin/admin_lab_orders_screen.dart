@@ -1,10 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/admin_lab_order_card.dart';
@@ -23,6 +21,7 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   String _searchQuery = '';
+  String? _uploadingOrderId;
 
   @override
   void initState() {
@@ -378,6 +377,11 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
       onTap: () => context.push('/admin/lab-order/${order.orderId}'),
       onCallTap: () {},
       onWhatsAppTap: () {},
+      onStatusTap: (status) => _updateOrderStatus(order.orderId, status),
+      onUploadPdfTap: order.status == LabOrderStatus.processing
+          ? () => _pickAndUploadFile(context, ref, order.orderId)
+          : null,
+      isUploadingPdf: _uploadingOrderId == order.orderId,
     );
   }
 
@@ -694,7 +698,7 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
       case LabOrderStatus.sampleCollected:
         return [LabOrderStatus.processing];
       case LabOrderStatus.processing:
-        return [LabOrderStatus.completed];
+        return [];
       case LabOrderStatus.completed:
       case LabOrderStatus.cancelled:
         return [];
@@ -1052,7 +1056,7 @@ class _AdminLabOrderDetailScreenState
       case LabOrderStatus.sampleCollected:
         return [LabOrderStatus.processing];
       case LabOrderStatus.processing:
-        return [LabOrderStatus.completed];
+        return [];
       case LabOrderStatus.completed:
       case LabOrderStatus.cancelled:
         return [];
@@ -1235,6 +1239,8 @@ class _AdminLabOrderDetailScreenState
   Future<void> _pickAndUploadFile(
       BuildContext context, WidgetRef ref, String orderId) async {
     try {
+      if (_uploadingOrderId != null) return;
+
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
@@ -1254,41 +1260,35 @@ class _AdminLabOrderDetailScreenState
         return;
       }
 
-      _uploadProgress.value = 0.0;
+      if (mounted) {
+        setState(() => _uploadingOrderId = orderId);
+      }
+      final labService = ref.read(labServiceProvider);
 
-      final uploadTask = FirebaseStorage.instance
-          .ref()
-          .child('lab_results')
-          .child(orderId)
-          .child(file.name)
-          .putFile(
-            File(file.path!),
-            SettableMetadata(contentType: 'application/pdf'),
-          );
-
-      uploadTask.snapshotEvents.listen((task) {
-        if (task.state == TaskState.running) {
-          _uploadProgress.value = task.bytesTransferred / task.totalBytes;
-        } else if (task.state == TaskState.success) {
-          _uploadProgress.value = null;
-        }
-      });
-
-      final snapshot = await uploadTask;
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      await ref.read(labServiceProvider).updateLabOrderStatus(
-          orderId, LabOrderStatus.completed,
-          note: 'Lab result uploaded');
+      await labService.uploadLabResult(
+        orderId,
+        file.path!,
+        file.name,
+      );
+      await labService.updateLabOrderStatus(
+        orderId,
+        LabOrderStatus.completed,
+        note: 'Lab result uploaded',
+      );
+      if (mounted) {
+        setState(() => _uploadingOrderId = null);
+      }
 
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Lab result uploaded successfully',
+            content: Text('Lab result uploaded and order completed',
                 style: GoogleFonts.sora())),
       );
     } catch (e) {
-      _uploadProgress.value = null;
+      if (mounted) {
+        setState(() => _uploadingOrderId = null);
+      }
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

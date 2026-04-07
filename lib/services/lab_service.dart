@@ -289,7 +289,11 @@ class LabService {
   }
 
   Future<String> uploadLabResult(
-      String orderId, String filePath, String fileName) async {
+    String orderId,
+    String filePath,
+    String fileName, {
+    void Function(double progress)? onProgress,
+  }) async {
     try {
       final storageRef = FirebaseStorage.instance
           .ref()
@@ -302,8 +306,17 @@ class LabService {
         SettableMetadata(contentType: 'application/pdf'),
       );
 
+      final progressSubscription = uploadTask.snapshotEvents.listen((task) {
+        if (task.state == TaskState.running && task.totalBytes > 0) {
+          onProgress?.call(task.bytesTransferred / task.totalBytes);
+        } else if (task.state == TaskState.success) {
+          onProgress?.call(1.0);
+        }
+      });
+
       final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
+      await progressSubscription.cancel();
 
       await _db.collection('labOrders').doc(orderId).update({
         'labResultUrl': downloadUrl,

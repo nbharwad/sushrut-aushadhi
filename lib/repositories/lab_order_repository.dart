@@ -46,7 +46,17 @@ class LabOrderRepository {
     return _labService.updatePaymentStatus(orderId, paymentStatus);
   }
 
-  Future<String> uploadLabResult(String orderId, String filePath, String fileName) async {
-    return _labService.uploadLabResult(orderId, filePath, fileName);
+  Future<String> uploadLabResult(
+    String orderId,
+    String filePath,
+    String fileName, {
+    void Function(double progress)? onProgress,
+  }) async {
+    return _labService.uploadLabResult(
+      orderId,
+      filePath,
+      fileName,
+      onProgress: onProgress,
+    );
   }
 }
