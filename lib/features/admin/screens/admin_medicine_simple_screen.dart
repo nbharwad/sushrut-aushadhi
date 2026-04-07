@@ -451,19 +451,38 @@ class _AdminMedicineSimpleScreenState
       onRefresh: _onRefresh,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isWideScreen = constraints.maxWidth > 600;
+          final isWideScreen = constraints.maxWidth > 900;
+
+          if (isWideScreen) {
+            return GridView.builder(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.85,
+              ),
+              itemCount:
+                  visibleOrders.length + (pageState.isLoadingMore ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index == visibleOrders.length) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  );
+                }
+                return _buildOrderTile(context, visibleOrders[index], true);
+              },
+            );
+          }
+
           return ListView.separated(
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(
-              isWideScreen ? 24 : 16,
-              0,
-              isWideScreen ? 24 : 16,
-              24,
-            ),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             itemCount: visibleOrders.length + (pageState.isLoadingMore ? 1 : 0),
-            separatorBuilder: (_, __) =>
-                SizedBox(height: isWideScreen ? 16 : 12),
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               if (index == visibleOrders.length) {
                 return const Padding(
@@ -473,8 +492,7 @@ class _AdminMedicineSimpleScreenState
                   ),
                 );
               }
-              return _buildOrderTile(
-                  context, visibleOrders[index], isWideScreen);
+              return _buildOrderTile(context, visibleOrders[index], false);
             },
           );
         },
@@ -503,7 +521,6 @@ class _AdminMedicineSimpleScreenState
       borderRadius: BorderRadius.circular(16),
       onTap: () => context.push('/admin/order/${order.orderId}'),
       child: Container(
-        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -519,166 +536,187 @@ class _AdminMedicineSimpleScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'SA-$shortId',
-                    style: GoogleFonts.sora(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+            // Colored top border per status
+            Container(
+              height: 3,
+              decoration: BoxDecoration(
+                color: statusColor,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    order.status.displayName,
-                    style: GoogleFonts.sora(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: statusColor,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.primary,
-                  child: Text(
-                    initials,
-                    style: GoogleFonts.sora(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'SA-$shortId',
+                          style: GoogleFonts.sora(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          order.status.displayName,
+                          style: GoogleFonts.sora(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
+                  const SizedBox(height: 12),
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        order.userName.isNotEmpty ? order.userName : 'Customer',
-                        style: GoogleFonts.sora(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: AppColors.primary,
+                        child: Text(
+                          initials,
+                          style: GoogleFonts.sora(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        order.userPhone,
-                        style: GoogleFonts.sora(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      if (!order.deliveryAddress.isEmpty) ...[
-                        const SizedBox(height: 4),
-                        Row(
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.location_on_outlined,
-                              size: 12,
-                              color: AppColors.textSecondary,
+                            Text(
+                              order.userName.isNotEmpty
+                                  ? order.userName
+                                  : 'Customer',
+                              style: GoogleFonts.sora(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
-                            const SizedBox(width: 3),
-                            Expanded(
-                              child: Text(
-                                order.deliveryAddress.toDisplayString(),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.sora(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary,
-                                ),
+                            const SizedBox(height: 2),
+                            Text(
+                              order.userPhone,
+                              style: GoogleFonts.sora(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            if (!order.deliveryAddress.isEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.location_on_outlined,
+                                    size: 12,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Expanded(
+                                    child: Text(
+                                      order.deliveryAddress.toDisplayString(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.sora(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${order.itemCount} items',
+                              style: GoogleFonts.sora(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Rs ${order.totalAmount.toStringAsFixed(0)}',
+                              style: GoogleFonts.sora(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${order.itemCount} items',
-                        style: GoogleFonts.sora(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Rs ${order.totalAmount.toStringAsFixed(0)}',
-                        style: GoogleFonts.sora(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      _formatDate(order.createdAt),
-                      style: GoogleFonts.sora(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        _QuickActionButton(
-                          icon: Icons.call_rounded,
-                          color: AppColors.primary,
-                          onTap: () => _launchUrl('tel:${order.userPhone}'),
-                        ),
-                        const SizedBox(width: 6),
-                        _QuickActionButton(
-                          icon: Icons.chat_bubble_outline_rounded,
-                          color: const Color(0xFF1B8E3E),
-                          onTap: () => _sendWhatsApp(order),
-                        ),
-                        if (order.prescriptionUrl != null &&
-                            order.prescriptionUrl!.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          _QuickActionButton(
-                            icon: Icons.description_outlined,
-                            color: const Color(0xFF7B1FA2),
-                            onTap: () =>
-                                _showPrescriptionViewer(order.prescriptionUrl!),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            _formatDate(order.createdAt),
+                            style: GoogleFonts.sora(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _QuickActionButton(
+                                icon: Icons.call_rounded,
+                                color: AppColors.primary,
+                                onTap: () =>
+                                    _launchUrl('tel:${order.userPhone}'),
+                              ),
+                              const SizedBox(width: 6),
+                              _QuickActionButton(
+                                icon: Icons.chat_bubble_outline_rounded,
+                                color: const Color(0xFF1B8E3E),
+                                onTap: () => _sendWhatsApp(order),
+                              ),
+                              if (order.prescriptionUrl != null &&
+                                  order.prescriptionUrl!.isNotEmpty) ...[
+                                const SizedBox(width: 6),
+                                _QuickActionButton(
+                                  icon: Icons.description_outlined,
+                                  color: const Color(0xFF7B1FA2),
+                                  onTap: () => _showPrescriptionViewer(
+                                      order.prescriptionUrl!),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
-                      ],
-                    ),
-                  ],
-                ),
-              ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
             if (order.status != OrderStatus.delivered &&
                 order.status != OrderStatus.cancelled) ...[
@@ -686,6 +724,8 @@ class _AdminMedicineSimpleScreenState
               const Divider(height: 1, color: Color(0xFFF0F4F0)),
               const SizedBox(height: 8),
               _buildStatusUpdateRow(order),
+              const SizedBox(height: 10),
+              _buildCardFooter(order),
             ],
           ],
         ),
@@ -796,6 +836,61 @@ class _AdminMedicineSimpleScreenState
     );
   }
 
+  Widget _buildCardFooter(OrderModel order) {
+    final canAct = order.status != OrderStatus.cancelled &&
+        order.status != OrderStatus.delivered;
+
+    if (!canAct) return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Rs ${order.totalAmount.toStringAsFixed(0)}',
+            style: GoogleFonts.sora(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
+        OutlinedButton(
+          onPressed: () => _showRejectConfirmDialog(order.orderId),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.error,
+            side: BorderSide(color: AppColors.error.withValues(alpha: 0.6)),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: Text('Reject', style: GoogleFonts.sora(fontSize: 12)),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: () => _showConfirmDialog(order),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: Text(
+            order.status == OrderStatus.pending ? 'Confirm' : 'Update',
+            style: GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+
   void _showStatusDialog(OrderModel order, OrderStatus newStatus) {
     showDialog<void>(
       context: context,
@@ -861,6 +956,72 @@ class _AdminMedicineSimpleScreenState
         ),
       );
     }
+  }
+
+  void _showRejectConfirmDialog(String orderId) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Reject Order',
+          style: GoogleFonts.sora(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to reject this order?',
+          style: GoogleFonts.sora(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.sora(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _updateOrderStatus(orderId, OrderStatus.cancelled);
+            },
+            child:
+                Text('Reject', style: GoogleFonts.sora(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showConfirmDialog(OrderModel order) {
+    final nextStatuses = getNextStatuses(order.status);
+    if (nextStatuses.isEmpty) return;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Update Status',
+          style: GoogleFonts.sora(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: nextStatuses
+              .map(
+                (status) => ListTile(
+                  leading: CircleAvatar(
+                    radius: 10,
+                    backgroundColor: Helpers.getStatusColor(status),
+                  ),
+                  title: Text(status.displayName, style: GoogleFonts.sora()),
+                  onTap: () {
+                    Navigator.of(dialogContext).pop();
+                    _updateOrderStatus(order.orderId, status);
+                  },
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
   }
 }
 
