@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/helpers.dart';
 import '../../../core/widgets/empty_state_widget.dart';
 import '../../../core/widgets/error_state_widget.dart';
 import '../../../models/order_model.dart';
+import '../../../providers/admin_order_actions_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/orders_provider.dart';
+import '../../../services/remote_config_service.dart';
+import '../../../services/whatsapp_service.dart';
 
 class AdminMedicineSimpleScreen extends ConsumerStatefulWidget {
   const AdminMedicineSimpleScreen({super.key});
@@ -25,6 +29,34 @@ class _AdminMedicineSimpleScreenState
   final _searchController = TextEditingController();
   String _selectedStatus = 'all';
   String _searchQuery = '';
+  String _sortOrder = 'newest';
+
+  _OrderStats _calculateStats(List<OrderModel> orders) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    int pending = 0;
+    int confirmed = 0;
+    int deliveredToday = 0;
+    double revenueToday = 0;
+
+    for (final order in orders) {
+      if (order.status == OrderStatus.pending) pending++;
+      if (order.status == OrderStatus.confirmed) confirmed++;
+      if (order.status == OrderStatus.delivered &&
+          order.createdAt.isAfter(today)) {
+        deliveredToday++;
+        revenueToday += order.totalAmount;
+      }
+    }
+
+    return _OrderStats(
+      pending: pending,
+      confirmed: confirmed,
+      deliveredToday: deliveredToday,
+      revenueToday: revenueToday,
+    );
+  }
 
   @override
   void initState() {
@@ -60,10 +92,29 @@ class _AdminMedicineSimpleScreenState
   List<OrderModel> _filteredOrders(List<OrderModel> orders) {
     final filteredByStatus = _selectedStatus == 'all'
         ? orders
-        : orders.where((order) => order.status.name == _selectedStatus).toList();
+        : orders
+            .where((order) => order.status.name == _selectedStatus)
+            .toList();
 
-    final sorted = [...filteredByStatus]
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    List<OrderModel> sorted;
+    switch (_sortOrder) {
+      case 'oldest':
+        sorted = [...filteredByStatus]
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
+      case 'amount_high':
+        sorted = [...filteredByStatus]
+          ..sort((a, b) => b.totalAmount.compareTo(a.totalAmount));
+        break;
+      case 'amount_low':
+        sorted = [...filteredByStatus]
+          ..sort((a, b) => a.totalAmount.compareTo(b.totalAmount));
+        break;
+      case 'newest':
+      default:
+        sorted = [...filteredByStatus]
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
 
     if (_searchQuery.isEmpty) {
       return sorted;
@@ -104,6 +155,7 @@ class _AdminMedicineSimpleScreenState
     }
 
     final visibleOrders = _filteredOrders(pageState.orders);
+    final stats = _calculateStats(pageState.orders);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -112,6 +164,8 @@ class _AdminMedicineSimpleScreenState
         child: Column(
           children: [
             _buildHeader(context),
+            if (!pageState.isInitialLoading || pageState.hasLoadedOnce)
+              _buildStatsRow(stats),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: TextField(
@@ -204,13 +258,92 @@ class _AdminMedicineSimpleScreenState
               ],
             ),
           ),
-          IconButton(
-            onPressed: _onRefresh,
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.sort, color: Colors.white),
+            tooltip: 'Sort orders',
+            onSelected: (value) => setState(() => _sortOrder = value),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'newest',
+                child: Row(
+                  children: [
+                    if (_sortOrder == 'newest')
+                      const Icon(Icons.check, size: 18),
+                    const SizedBox(width: 8),
+                    Text('Newest first', style: GoogleFonts.sora()),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'oldest',
+                child: Row(
+                  children: [
+                    if (_sortOrder == 'oldest')
+                      const Icon(Icons.check, size: 18),
+                    const SizedBox(width: 8),
+                    Text('Oldest first', style: GoogleFonts.sora()),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'amount_high',
+                child: Row(
+                  children: [
+                    if (_sortOrder == 'amount_high')
+                      const Icon(Icons.check, size: 18),
+                    const SizedBox(width: 8),
+                    Text('Amount ↑ (High to Low)', style: GoogleFonts.sora()),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'amount_low',
+                child: Row(
+                  children: [
+                    if (_sortOrder == 'amount_low')
+                      const Icon(Icons.check, size: 18),
+                    const SizedBox(width: 8),
+                    Text('Amount ↓ (Low to High)', style: GoogleFonts.sora()),
+                  ],
+                ),
+              ),
+            ],
           ),
-          IconButton(
-            onPressed: () => context.push('/admin/prescription'),
-            icon: const Icon(Icons.description_outlined, color: Colors.white),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsRow(_OrderStats stats) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      color: Colors.white,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _StatItem(
+            icon: Icons.inventory_2_outlined,
+            label: 'Pending',
+            value: stats.pending.toString(),
+            color: Colors.orange,
+          ),
+          _StatItem(
+            icon: Icons.check_circle_outline,
+            label: 'Confirmed',
+            value: stats.confirmed.toString(),
+            color: Colors.blue,
+          ),
+          _StatItem(
+            icon: Icons.local_shipping_outlined,
+            label: 'Today',
+            value: stats.deliveredToday.toString(),
+            color: Colors.green,
+          ),
+          _StatItem(
+            icon: Icons.attach_money,
+            label: 'Revenue',
+            value: '₹${stats.revenueToday.toStringAsFixed(0)}',
+            color: AppColors.primary,
           ),
         ],
       ),
@@ -316,32 +449,55 @@ class _AdminMedicineSimpleScreenState
       color: Colors.white,
       backgroundColor: AppColors.primary,
       onRefresh: _onRefresh,
-      child: ListView.separated(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        itemCount: visibleOrders.length + (pageState.isLoadingMore ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          if (index == visibleOrders.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            );
-          }
-          return _buildOrderTile(context, visibleOrders[index]);
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWideScreen = constraints.maxWidth > 600;
+          return ListView.separated(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(
+              isWideScreen ? 24 : 16,
+              0,
+              isWideScreen ? 24 : 16,
+              24,
+            ),
+            itemCount: visibleOrders.length + (pageState.isLoadingMore ? 1 : 0),
+            separatorBuilder: (_, __) =>
+                SizedBox(height: isWideScreen ? 16 : 12),
+            itemBuilder: (context, index) {
+              if (index == visibleOrders.length) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                );
+              }
+              return _buildOrderTile(
+                  context, visibleOrders[index], isWideScreen);
+            },
+          );
         },
       ),
     );
   }
 
-  Widget _buildOrderTile(BuildContext context, OrderModel order) {
+  Widget _buildOrderTile(
+      BuildContext context, OrderModel order, bool isWideScreen) {
     final statusColor = Helpers.getStatusColor(order.status);
     final shortId = order.orderId.length >= 4
         ? order.orderId.substring(0, 4).toUpperCase()
         : order.orderId.toUpperCase();
+
+    final initials = order.userName.isNotEmpty
+        ? order.userName
+            .split(' ')
+            .where((e) => e.isNotEmpty)
+            .take(2)
+            .map((e) => e[0])
+            .join()
+            .toUpperCase()
+        : '?';
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
@@ -392,44 +548,202 @@ class _AdminMedicineSimpleScreenState
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Text(
-              order.userName,
-              style: GoogleFonts.sora(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${order.userPhone} • ${order.itemCount} items',
-              style: GoogleFonts.sora(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primary,
                   child: Text(
-                    'Rs ${order.totalAmount.toStringAsFixed(0)}',
+                    initials,
                     style: GoogleFonts.sora(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                Text(
-                  _formatDate(order.createdAt),
-                  style: GoogleFonts.sora(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.userName.isNotEmpty ? order.userName : 'Customer',
+                        style: GoogleFonts.sora(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        order.userPhone,
+                        style: GoogleFonts.sora(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      if (!order.deliveryAddress.isEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              size: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: 3),
+                            Expanded(
+                              child: Text(
+                                order.deliveryAddress.toDisplayString(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.sora(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${order.itemCount} items',
+                        style: GoogleFonts.sora(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Rs ${order.totalAmount.toStringAsFixed(0)}',
+                        style: GoogleFonts.sora(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _formatDate(order.createdAt),
+                      style: GoogleFonts.sora(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _QuickActionButton(
+                          icon: Icons.call_rounded,
+                          color: AppColors.primary,
+                          onTap: () => _launchUrl('tel:${order.userPhone}'),
+                        ),
+                        const SizedBox(width: 6),
+                        _QuickActionButton(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          color: const Color(0xFF1B8E3E),
+                          onTap: () => _sendWhatsApp(order),
+                        ),
+                        if (order.prescriptionUrl != null &&
+                            order.prescriptionUrl!.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          _QuickActionButton(
+                            icon: Icons.description_outlined,
+                            color: const Color(0xFF7B1FA2),
+                            onTap: () =>
+                                _showPrescriptionViewer(order.prescriptionUrl!),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (order.status != OrderStatus.delivered &&
+                order.status != OrderStatus.cancelled) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Color(0xFFF0F4F0)),
+              const SizedBox(height: 8),
+              _buildStatusUpdateRow(order),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  Future<void> _sendWhatsApp(OrderModel order) async {
+    try {
+      await WhatsAppService.sendOrderUpdate(
+        customerPhone: order.userPhone,
+        orderId: order.orderId,
+        customerName: order.userName,
+        status: order.status.name,
+        totalAmount: order.totalAmount,
+        itemNames: order.items.map((i) => i.medicineName).toList(),
+        storePhone: RemoteConfigService.storePhone,
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('WhatsApp not available on this device'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showPrescriptionViewer(String prescriptionUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: const Text('Prescription'),
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            Image.network(
+              prescriptionUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Failed to load prescription'),
+              ),
             ),
           ],
         ),
@@ -446,5 +760,224 @@ class _AdminMedicineSimpleScreenState
     final minute = dateTime.minute.toString().padLeft(2, '0');
     final suffix = dateTime.hour >= 12 ? 'PM' : 'AM';
     return '$day/$month/$year  $safeHour:$minute $suffix';
+  }
+
+  Widget _buildStatusUpdateRow(OrderModel order) {
+    final nextStatuses = getNextStatuses(order.status);
+    if (nextStatuses.isEmpty) return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        Text(
+          'Move to:',
+          style: GoogleFonts.sora(
+            color: AppColors.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: nextStatuses
+                .map(
+                  (status) => _StatusChipButton(
+                    label: status.displayName,
+                    color: Helpers.getStatusColor(status),
+                    onTap: () => _showStatusDialog(order, status),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showStatusDialog(OrderModel order, OrderStatus newStatus) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Update Status',
+          style: GoogleFonts.sora(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Change order status to "${newStatus.displayName}"?',
+          style: GoogleFonts.sora(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.sora(color: AppColors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              await _updateOrderStatus(order.orderId, newStatus);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Update', style: GoogleFonts.sora()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateOrderStatus(String orderId, OrderStatus newStatus) async {
+    final actionState = ref.read(adminOrderActionsProvider);
+    if (actionState.isLoading) return;
+
+    final success = await ref
+        .read(adminOrderActionsProvider.notifier)
+        .updateOrderStatus(orderId, newStatus);
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Order status updated to ${newStatus.displayName}',
+            style: GoogleFonts.sora(),
+          ),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      await ref.read(adminOrdersPageProvider.notifier).refresh();
+    } else if (mounted) {
+      final error = ref.read(adminOrderActionsProvider).error;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error ?? 'Failed to update status',
+              style: GoogleFonts.sora()),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+}
+
+class _StatusChipButton extends StatelessWidget {
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _StatusChipButton({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.sora(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderStats {
+  final int pending;
+  final int confirmed;
+  final int deliveredToday;
+  final double revenueToday;
+
+  _OrderStats({
+    required this.pending,
+    required this.confirmed,
+    required this.deliveredToday,
+    required this.revenueToday,
+  });
+}
+
+class _StatItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 20, color: color),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.sora(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.sora(
+            fontSize: 10,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickActionButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 18, color: color),
+      ),
+    );
   }
 }

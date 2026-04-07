@@ -447,6 +447,21 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
     final tests = testsAsync.valueOrNull ?? [];
     final packages = packagesAsync.valueOrNull ?? [];
 
+    // Auto-select package if navigated from package detail screen
+    if (_selectedPackage == null &&
+        widget.packageId != null &&
+        packages.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final foundPackage =
+            packages.where((p) => p.id == widget.packageId).firstOrNull;
+        if (foundPackage != null && mounted) {
+          setState(() {
+            _selectedPackage = foundPackage;
+          });
+        }
+      });
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9F7),
       body: SafeArea(

@@ -28,7 +28,8 @@ class LabService {
 
       final snapshot = await _db
           .collection('labOrders')
-          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+          .where('createdAt',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
           .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
           .get();
 
@@ -36,17 +37,27 @@ class LabService {
           .map((doc) => LabOrderModel.fromFirestore(doc.data(), doc.id))
           .toList();
 
-      final pending = orders.where((o) => o.status == LabOrderStatus.pending).length;
-      final sampleCollected = orders.where((o) => o.status == LabOrderStatus.sampleCollected).length;
-      final processing = orders.where((o) => o.status == LabOrderStatus.processing).length;
-      final completed = orders.where((o) => o.status == LabOrderStatus.completed).length;
-      final cancelled = orders.where((o) => o.status == LabOrderStatus.cancelled).length;
+      final pending =
+          orders.where((o) => o.status == LabOrderStatus.pending).length;
+      final sampleCollected = orders
+          .where((o) => o.status == LabOrderStatus.sampleCollected)
+          .length;
+      final processing =
+          orders.where((o) => o.status == LabOrderStatus.processing).length;
+      final completed =
+          orders.where((o) => o.status == LabOrderStatus.completed).length;
+      final cancelled =
+          orders.where((o) => o.status == LabOrderStatus.cancelled).length;
 
-      final paidOrders = orders.where((o) => o.paymentStatus == 'paid').toList();
-      final unpaidOrders = orders.where((o) => o.paymentStatus != 'paid').toList();
+      final paidOrders =
+          orders.where((o) => o.paymentStatus == 'paid').toList();
+      final unpaidOrders =
+          orders.where((o) => o.paymentStatus != 'paid').toList();
 
-      final totalRevenue = paidOrders.fold<double>(0, (sum, o) => sum + o.totalAmount);
-      final pendingRevenue = unpaidOrders.fold<double>(0, (sum, o) => sum + o.totalAmount);
+      final totalRevenue =
+          paidOrders.fold<double>(0, (sum, o) => sum + o.totalAmount);
+      final pendingRevenue =
+          unpaidOrders.fold<double>(0, (sum, o) => sum + o.totalAmount);
 
       return {
         'totalOrders': orders.length,
@@ -79,11 +90,13 @@ class LabService {
       throw Exception('Missing required user information');
     }
     if (order.userPhone.isEmpty) {
-      throw Exception('Missing mobile number: please add your phone number to your profile');
+      throw Exception(
+          'Missing mobile number: please add your phone number to your profile');
     }
 
     try {
-      final orderId = order.orderId.isNotEmpty ? order.orderId : generateLabOrderId();
+      final orderId =
+          order.orderId.isNotEmpty ? order.orderId : generateLabOrderId();
 
       final orderWithId = LabOrderModel(
         orderId: orderId,
@@ -103,9 +116,9 @@ class LabService {
       );
 
       await _db.collection('labOrders').doc(orderId).set(orderWithId.toMap());
-      
+
       AppLogger.info("Lab order placed: $orderId", tag: "LabOrder");
-      
+
       return orderId;
     } catch (e) {
       AppLogger.error("Error placing lab order: $e", tag: "LabOrder");
@@ -155,7 +168,8 @@ class LabService {
     });
   }
 
-  Future<void> updateLabOrderStatus(String orderId, LabOrderStatus status, {String? note, String? updatedBy}) async {
+  Future<void> updateLabOrderStatus(String orderId, LabOrderStatus status,
+      {String? note, String? updatedBy}) async {
     final newHistoryEntry = LabStatusHistoryEntry(
       status: status.name,
       timestamp: DateTime.now(),
@@ -187,7 +201,8 @@ class LabService {
 
       final shortId = orderId.length >= 8 ? orderId.substring(0, 8) : orderId;
       final title = 'Lab Results Ready';
-      final body = 'Your lab order #SA-LB-${shortId.toUpperCase()} is complete. View your results in the app.';
+      final body =
+          'Your lab order #SA-LB-${shortId.toUpperCase()} is complete. View your results in the app.';
 
       await _notificationService.addLocalNotification(
         title: title,
@@ -206,9 +221,11 @@ class LabService {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      AppLogger.info("Completion notification sent for order: $orderId", tag: "LabOrder");
+      AppLogger.info("Completion notification sent for order: $orderId",
+          tag: "LabOrder");
     } catch (e) {
-      AppLogger.error("Error sending completion notification: $e", tag: "LabOrder");
+      AppLogger.error("Error sending completion notification: $e",
+          tag: "LabOrder");
     }
   }
 
@@ -216,12 +233,12 @@ class LabService {
     try {
       print("=== LAB SERVICE: Starting fetch from lab_tests collection ===");
 
-      // Force server timestamp to bypass cache
-      final snapshot = await _db.collection('lab_tests')
-          .limit(10)
+      final snapshot = await _db
+          .collection('lab_tests')
           .get(const GetOptions(source: Source.server));
 
-      print("=== LAB SERVICE: Query completed, docs count: ${snapshot.docs.length} ===");
+      print(
+          "=== LAB SERVICE: Query completed, docs count: ${snapshot.docs.length} ===");
 
       // Parse documents individually to catch per-document errors
       final tests = <LabTestModel>[];
@@ -234,7 +251,8 @@ class LabService {
         } catch (e, st) {
           print("=== PARSE ERROR for ${doc.id}: $e ===");
           print("=== STACK: $st ===");
-          AppLogger.error("Failed to parse lab test ${doc.id}: $e", tag: "LabService");
+          AppLogger.error("Failed to parse lab test ${doc.id}: $e",
+              tag: "LabService");
           // Continue parsing other documents
         }
       }
@@ -261,16 +279,23 @@ class LabService {
       }
 
       await _db.collection('labOrders').doc(orderId).update(updateData);
-      AppLogger.info("Payment status updated to $paymentStatus for order: $orderId", tag: "LabOrder");
+      AppLogger.info(
+          "Payment status updated to $paymentStatus for order: $orderId",
+          tag: "LabOrder");
     } catch (e) {
       AppLogger.error("Error updating payment status: $e", tag: "LabOrder");
       rethrow;
     }
   }
 
-  Future<String> uploadLabResult(String orderId, String filePath, String fileName) async {
+  Future<String> uploadLabResult(
+      String orderId, String filePath, String fileName) async {
     try {
-      final storageRef = FirebaseStorage.instance.ref().child('lab_results').child(orderId).child(fileName);
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('lab_results')
+          .child(orderId)
+          .child(fileName);
 
       final uploadTask = storageRef.putFile(
         File(filePath),
@@ -286,7 +311,8 @@ class LabService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      AppLogger.info("Lab result uploaded for order: $orderId", tag: "LabOrder");
+      AppLogger.info("Lab result uploaded for order: $orderId",
+          tag: "LabOrder");
       return downloadUrl;
     } catch (e) {
       AppLogger.error("Error uploading lab result: $e", tag: "LabOrder");
@@ -308,21 +334,15 @@ class LabService {
   }
 
   Stream<List<LabPackageModel>> getAllLabPackages() {
-    return _db
-        .collection('lab_packages')
-        .orderBy('sortOrder')
-        .snapshots()
-        .map((snap) => snap.docs
+    return _db.collection('lab_packages').orderBy('sortOrder').snapshots().map(
+        (snap) => snap.docs
             .map((d) => LabPackageModel.fromFirestore(d.data(), d.id))
             .toList());
   }
 
   Stream<LabPackageModel?> getLabPackageStream(String packageId) {
-    return _db
-        .collection('lab_packages')
-        .doc(packageId)
-        .snapshots()
-        .map((doc) => doc.exists
+    return _db.collection('lab_packages').doc(packageId).snapshots().map(
+        (doc) => doc.exists
             ? LabPackageModel.fromFirestore(doc.data()!, doc.id)
             : null);
   }
@@ -341,12 +361,14 @@ class LabService {
     try {
       final docRef = _db.collection('lab_packages').doc();
       final now = DateTime.now();
-      final data = package.copyWith(
-        id: docRef.id,
-        createdAt: now,
-        updatedAt: now,
-        testCount: package.testIds.length,
-      ).toMap();
+      final data = package
+          .copyWith(
+            id: docRef.id,
+            createdAt: now,
+            updatedAt: now,
+            testCount: package.testIds.length,
+          )
+          .toMap();
       await docRef.set(data);
       AppLogger.info('Lab package created: ${docRef.id}', tag: 'LabPackage');
       return docRef.id;
@@ -356,7 +378,8 @@ class LabService {
     }
   }
 
-  Future<void> updateLabPackage(String packageId, Map<String, dynamic> data) async {
+  Future<void> updateLabPackage(
+      String packageId, Map<String, dynamic> data) async {
     try {
       data['updatedAt'] = FieldValue.serverTimestamp();
       if (data.containsKey('testIds') && data['testIds'] is List) {
@@ -376,7 +399,8 @@ class LabService {
         'active': active,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      AppLogger.info('Lab package $packageId active=$active', tag: 'LabPackage');
+      AppLogger.info('Lab package $packageId active=$active',
+          tag: 'LabPackage');
     } catch (e) {
       AppLogger.error('Error toggling lab package: $e', tag: 'LabPackage');
       rethrow;
@@ -396,11 +420,8 @@ class LabService {
   // ── Individual Lab Tests (admin management) ───────────────────────────────
 
   Stream<List<LabTestModel>> getAllLabTestsStream() {
-    return _db
-        .collection('lab_tests')
-        .orderBy('name')
-        .snapshots()
-        .map((snap) => snap.docs
+    return _db.collection('lab_tests').orderBy('name').snapshots().map((snap) =>
+        snap.docs
             .map((d) => LabTestModel.fromFirestore(d.data(), d.id))
             .toList());
   }
