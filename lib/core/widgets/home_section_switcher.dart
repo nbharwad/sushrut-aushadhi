@@ -17,12 +17,13 @@ class HomeSectionSwitcher extends StatelessWidget {
     return SliverToBoxAdapter(
       child: Container(
         color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Container(
-          height: 48,
+          height: 50,
           decoration: BoxDecoration(
-            color: const Color(0xFFF4F5F3),
-            borderRadius: BorderRadius.circular(14),
+            color: AppColors.backgroundAlt,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.divider, width: 1),
           ),
           child: Row(
             children: [
@@ -32,6 +33,7 @@ class HomeSectionSwitcher extends StatelessWidget {
                   label: 'Medicines',
                   isActive: activeSection == 0,
                   activeColor: AppColors.primary,
+                  activeGradient: const [Color(0xFF0A5C45), Color(0xFF1AAE7A)],
                   onTap: () => onSectionChanged(0),
                 ),
               ),
@@ -41,6 +43,7 @@ class HomeSectionSwitcher extends StatelessWidget {
                   label: 'Lab Tests',
                   isActive: activeSection == 1,
                   activeColor: AppColors.labPrimary,
+                  activeGradient: const [Color(0xFF0760A8), Color(0xFF0B9FE0)],
                   onTap: () => onSectionChanged(1),
                 ),
               ),
@@ -57,6 +60,7 @@ class _SwitcherTab extends StatelessWidget {
   final String label;
   final bool isActive;
   final Color activeColor;
+  final List<Color> activeGradient;
   final VoidCallback onTap;
 
   const _SwitcherTab({
@@ -64,6 +68,7 @@ class _SwitcherTab extends StatelessWidget {
     required this.label,
     required this.isActive,
     required this.activeColor,
+    required this.activeGradient,
     required this.onTap,
   });
 
@@ -72,27 +77,44 @@ class _SwitcherTab extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 220),
         margin: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: isActive ? activeColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(11),
+          gradient: isActive
+              ? LinearGradient(
+                  colors: activeGradient,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isActive ? null : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: activeColor.withOpacity(0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
-              size: 18,
+              size: 17,
               color: isActive ? Colors.white : AppColors.textSecondary,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 7),
             Text(
               label,
               style: GoogleFonts.sora(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: isActive ? Colors.white : AppColors.textSecondary,
+                letterSpacing: 0.1,
               ),
             ),
           ],

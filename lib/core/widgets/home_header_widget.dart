@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/utils/responsive.dart';
 import '../../providers/auth_provider.dart';
 
 class HomeHeaderWidget extends ConsumerWidget {
@@ -39,11 +38,20 @@ class HomeHeaderWidget extends ConsumerWidget {
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
       elevation: 0,
+      shadowColor: Colors.black.withOpacity(0.06),
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(120),
         child: Container(
-          color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              bottom: BorderSide(
+                color: AppColors.divider,
+                width: 1,
+              ),
+            ),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
           child: Column(
             children: [
               _buildLocationRow(city, displayAddress),
@@ -61,12 +69,22 @@ class HomeHeaderWidget extends ConsumerWidget {
       onTap: onLocationTap,
       child: Row(
         children: [
-          const Icon(
-            Icons.location_on_rounded,
-            color: AppColors.primary,
-            size: 20,
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.location_on_rounded,
+                color: AppColors.primary,
+                size: 17,
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,26 +92,54 @@ class HomeHeaderWidget extends ConsumerWidget {
                 Text(
                   'Deliver to',
                   style: GoogleFonts.sora(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w500,
+                    letterSpacing: 0.3,
                   ),
                 ),
-                Text(
-                  city.isNotEmpty ? city : 'Anand, Gujarat',
-                  style: GoogleFonts.sora(
-                    fontSize: 15,
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      city.isNotEmpty ? city : 'Anand, Gujarat',
+                      style: GoogleFonts.sora(
+                        fontSize: 15,
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.textSecondary,
+                      size: 18,
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: AppColors.textSecondary,
-            size: 20,
+          // Sushrut badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0A5C45), Color(0xFF1AAE7A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              'SA',
+              style: GoogleFonts.sora(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
+            ),
           ),
         ],
       ),
@@ -107,38 +153,49 @@ class HomeHeaderWidget extends ConsumerWidget {
         height: 52,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F5F3),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFEDEFEA)),
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.divider, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
             const Icon(
               Icons.search_rounded,
-              color: Color(0xFF98A09B),
+              color: AppColors.textSecondary,
               size: 22,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 'Search medicines, health products...',
                 style: GoogleFonts.sora(
                   fontSize: 13,
-                  color: const Color(0xFF98A09B),
+                  color: AppColors.textSecondary,
                 ),
               ),
             ),
             Container(
               width: 38,
-              height: 38,
+              height: 36,
               decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(12),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0A5C45), Color(0xFF1AAE7A)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(11),
               ),
               child: const Icon(
                 Icons.mic_none_rounded,
                 color: Colors.white,
-                size: 20,
+                size: 19,
               ),
             ),
           ],
@@ -169,8 +226,13 @@ class HomeHeaderGuest extends StatelessWidget {
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(120),
         child: Container(
-          color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              bottom: BorderSide(color: AppColors.divider, width: 1),
+            ),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
           child: Column(
             children: [
               _buildLocationRow(),
@@ -186,12 +248,18 @@ class HomeHeaderGuest extends StatelessWidget {
   Widget _buildLocationRow() {
     return Row(
       children: [
-        const Icon(
-          Icons.location_on_rounded,
-          color: AppColors.primary,
-          size: 20,
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Center(
+            child: Icon(Icons.location_on_rounded, color: AppColors.primary, size: 17),
+          ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,26 +267,53 @@ class HomeHeaderGuest extends StatelessWidget {
               Text(
                 'Deliver to',
                 style: GoogleFonts.sora(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
+                  letterSpacing: 0.3,
                 ),
               ),
-              Text(
-                'Anand, Gujarat',
-                style: GoogleFonts.sora(
-                  fontSize: 15,
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    'Anand, Gujarat',
+                    style: GoogleFonts.sora(
+                      fontSize: 15,
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.textSecondary,
+                    size: 18,
+                  ),
+                ],
               ),
             ],
           ),
         ),
-        const Icon(
-          Icons.keyboard_arrow_down_rounded,
-          color: AppColors.textSecondary,
-          size: 20,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0A5C45), Color(0xFF1AAE7A)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            'SA',
+            style: GoogleFonts.sora(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: 0.5,
+            ),
+          ),
         ),
       ],
     );
@@ -231,39 +326,39 @@ class HomeHeaderGuest extends StatelessWidget {
         height: 52,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F5F3),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFEDEFEA)),
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.divider, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            const Icon(
-              Icons.search_rounded,
-              color: Color(0xFF98A09B),
-              size: 22,
-            ),
-            const SizedBox(width: 12),
+            const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 22),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 'Search medicines, health products...',
-                style: GoogleFonts.sora(
-                  fontSize: 13,
-                  color: const Color(0xFF98A09B),
-                ),
+                style: GoogleFonts.sora(fontSize: 13, color: AppColors.textSecondary),
               ),
             ),
             Container(
               width: 38,
-              height: 38,
+              height: 36,
               decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(12),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0A5C45), Color(0xFF1AAE7A)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(11),
               ),
-              child: const Icon(
-                Icons.mic_none_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
+              child: const Icon(Icons.mic_none_rounded, color: Colors.white, size: 19),
             ),
           ],
         ),

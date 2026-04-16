@@ -47,7 +47,7 @@ class HomeCategoryChipRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return SliverToBoxAdapter(
       child: SizedBox(
-        height: 48,
+        height: 46,
         child: ListView.separated(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           scrollDirection: Axis.horizontal,
@@ -61,33 +61,54 @@ class HomeCategoryChipRow extends StatelessWidget {
               onTap: () => onCategorySelected(category['id']!),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                 decoration: BoxDecoration(
-                  color:
-                      isSelected ? AppColors.primary : AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(20),
+                  gradient: isSelected
+                      ? const LinearGradient(
+                          colors: [Color(0xFF0A5C45), Color(0xFF1AAE7A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  color: isSelected ? null : Colors.white,
+                  borderRadius: BorderRadius.circular(22),
                   border: Border.all(
                     color: isSelected
-                        ? AppColors.primary
-                        : const Color(0xFF9FE1CB),
+                        ? Colors.transparent
+                        : AppColors.divider,
+                    width: 1.5,
                   ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.25),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       _getIcon(category['icon']!),
-                      size: 16,
-                      color: isSelected ? Colors.white : AppColors.primary,
+                      size: 15,
+                      color: isSelected ? Colors.white : AppColors.textSecondary,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       category['name']!,
                       style: GoogleFonts.sora(
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : AppColors.primary,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected ? Colors.white : AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -116,17 +137,17 @@ class HomeCategoriesSection extends StatelessWidget {
   Color _getCategoryColor(String id) {
     switch (id) {
       case 'fever':
-        return const Color(0xFFF7A34B);
+        return const Color(0xFFE8803A);
       case 'pain':
-        return const Color(0xFF4ABF84);
+        return const Color(0xFF3A9E6B);
       case 'skin':
-        return const Color(0xFF76B8FF);
+        return const Color(0xFF5B9CF6);
       case 'diabetes':
-        return const Color(0xFFF39BB8);
+        return const Color(0xFFDB6B9E);
       case 'heart':
-        return const Color(0xFFA284FF);
+        return const Color(0xFF8B72E8);
       case 'vitamins':
-        return const Color(0xFF42C7B2);
+        return const Color(0xFF2EC4A9);
       default:
         return AppColors.primary;
     }
@@ -158,7 +179,7 @@ class HomeCategoriesSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 22, 16, 14),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -172,12 +193,19 @@ class HomeCategoriesSection extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: () => onCategoryTap('all'),
-                  child: Text(
-                    'See all',
-                    style: GoogleFonts.sora(
-                      fontSize: 13,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'See all',
+                      style: GoogleFonts.sora(
+                        fontSize: 12,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -185,7 +213,7 @@ class HomeCategoriesSection extends StatelessWidget {
             ),
           ),
           SizedBox(
-            height: 110,
+            height: 112,
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               scrollDirection: Axis.horizontal,
@@ -200,17 +228,35 @@ class HomeCategoriesSection extends StatelessWidget {
                 return GestureDetector(
                   onTap: () => onCategoryTap(id),
                   child: SizedBox(
-                    width: 74,
+                    width: 76,
                     child: Column(
                       children: [
-                        Container(
-                          width: 56,
-                          height: 56,
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 58,
+                          height: 58,
                           decoration: BoxDecoration(
-                            color: selected
-                                ? color
-                                : color.withValues(alpha: 0.18),
+                            gradient: selected
+                                ? LinearGradient(
+                                    colors: [
+                                      color,
+                                      color.withOpacity(0.75),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  )
+                                : null,
+                            color: selected ? null : color.withOpacity(0.12),
                             borderRadius: BorderRadius.circular(18),
+                            boxShadow: selected
+                                ? [
+                                    BoxShadow(
+                                      color: color.withOpacity(0.30),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ]
+                                : null,
                           ),
                           child: Center(
                             child: Icon(

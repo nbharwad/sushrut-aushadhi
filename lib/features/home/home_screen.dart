@@ -322,12 +322,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     GestureDetector(
                       onTap: () => context.push('/search'),
-                      child: Text(
-                        'View all',
-                        style: GoogleFonts.sora(
-                          fontSize: 13,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          'View all',
+                          style: GoogleFonts.sora(
+                            fontSize: 12,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),

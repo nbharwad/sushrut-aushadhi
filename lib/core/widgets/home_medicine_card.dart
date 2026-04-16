@@ -34,6 +34,25 @@ class HomeMedicineCard extends StatelessWidget {
     }
   }
 
+  Color _getCategoryColor(String category) {
+    switch (category) {
+      case 'fever':
+        return const Color(0xFFE8803A);
+      case 'pain':
+        return const Color(0xFF3A9E6B);
+      case 'skin':
+        return const Color(0xFF5B9CF6);
+      case 'diabetes':
+        return const Color(0xFFDB6B9E);
+      case 'heart':
+        return const Color(0xFF8B72E8);
+      case 'vitamins':
+        return const Color(0xFF2EC4A9);
+      default:
+        return AppColors.primary;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final price = ((medicine['price'] ?? 0) as num).toDouble();
@@ -41,11 +60,12 @@ class HomeMedicineCard extends StatelessWidget {
     final discount = Helpers.calculateDiscount(price, mrp);
     final requiresPrescription = medicine['requiresPrescription'] == true;
     final category = medicine['category']?.toString() ?? '';
+    final categoryColor = _getCategoryColor(category);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 170;
-        final imageSize = constraints.maxWidth * (isCompact ? 0.42 : 0.36);
+        final imageSize = constraints.maxWidth * (isCompact ? 0.42 : 0.38);
         final spacing = isCompact ? 8.0 : 10.0;
 
         return GestureDetector(
@@ -54,13 +74,14 @@ class HomeMedicineCard extends StatelessWidget {
             padding: EdgeInsets.all(isCompact ? 10 : 12),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFE8ECE7)),
-              boxShadow: const [
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.divider, width: 1),
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x0A122019),
-                  blurRadius: 14,
-                  offset: Offset(0, 8),
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                  spreadRadius: -2,
                 ),
               ],
             ),
@@ -95,16 +116,27 @@ class HomeMedicineCard extends StatelessWidget {
                     GestureDetector(
                       onTap: onAddToCart,
                       child: Container(
-                        width: isCompact ? 26 : 28,
-                        height: isCompact ? 26 : 28,
+                        width: isCompact ? 28 : 30,
+                        height: isCompact ? 28 : 30,
                         decoration: BoxDecoration(
-                          color: AppColors.primaryLight,
-                          borderRadius: BorderRadius.circular(8),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF0A5C45), Color(0xFF1AAE7A)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(9),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withOpacity(0.25),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Icon(
-                          Icons.add_shopping_cart_rounded,
-                          size: isCompact ? 14 : 15,
-                          color: AppColors.primary,
+                          Icons.add_rounded,
+                          size: isCompact ? 15 : 16,
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -116,14 +148,14 @@ class HomeMedicineCard extends StatelessWidget {
                     width: imageSize,
                     height: imageSize,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
+                      color: categoryColor.withOpacity(0.10),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Center(
                       child: Icon(
                         _getMedicineIcon(category),
                         size: isCompact ? 30 : 36,
-                        color: AppColors.primary,
+                        color: categoryColor,
                       ),
                     ),
                   ),
@@ -170,36 +202,40 @@ class HomeMedicineCard extends StatelessWidget {
                           ),
                           margin: const EdgeInsets.only(bottom: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.error.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
+                            color: AppColors.discountRed.withOpacity(0.09),
+                            borderRadius: BorderRadius.circular(5),
                           ),
                           child: Text(
                             '$discount% off',
                             style: GoogleFonts.sora(
-                              color: AppColors.error,
+                              color: AppColors.discountRed,
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
                             '\u20B9${price.toStringAsFixed(0)}',
                             style: GoogleFonts.sora(
                               color: AppColors.primary,
-                              fontSize: isCompact ? 13 : 14,
+                              fontSize: isCompact ? 14 : 15,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                           const SizedBox(width: 4),
                           if (mrp > price)
-                            Text(
-                              '\u20B9${mrp.toStringAsFixed(0)}',
-                              style: GoogleFonts.sora(
-                                color: AppColors.textSecondary,
-                                fontSize: isCompact ? 9 : 10,
-                                decoration: TextDecoration.lineThrough,
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 1),
+                              child: Text(
+                                '\u20B9${mrp.toStringAsFixed(0)}',
+                                style: GoogleFonts.sora(
+                                  color: AppColors.textSecondary,
+                                  fontSize: isCompact ? 9 : 10,
+                                  decoration: TextDecoration.lineThrough,
+                                ),
                               ),
                             ),
                         ],
@@ -251,12 +287,19 @@ class HomeMedicineGrid extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: () {},
-                  child: Text(
-                    'View all',
-                    style: GoogleFonts.sora(
-                      fontSize: 13,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'View all',
+                      style: GoogleFonts.sora(
+                        fontSize: 12,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),

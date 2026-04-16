@@ -9,8 +9,21 @@ class HomeTrustBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return SliverToBoxAdapter(
       child: Container(
-        color: AppColors.primaryLight,
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primary.withOpacity(0.08),
+              AppColors.primaryLight.withOpacity(0.6),
+              AppColors.primary.withOpacity(0.05),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          border: Border(
+            bottom: BorderSide(color: AppColors.primary.withOpacity(0.12), width: 1),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
@@ -20,21 +33,25 @@ class HomeTrustBanner extends StatelessWidget {
               _TrustBadge(
                 icon: Icons.verified_rounded,
                 label: 'Licensed',
+                color: AppColors.primary,
               ),
               _buildDivider(),
               _TrustBadge(
                 icon: Icons.medical_services_rounded,
                 label: 'Pharmacist',
+                color: AppColors.primary,
               ),
               _buildDivider(),
               _TrustBadge(
                 icon: Icons.local_shipping_rounded,
                 label: '2Hr Delivery',
+                color: AppColors.primary,
               ),
               _buildDivider(),
               _TrustBadge(
                 icon: Icons.inventory_2_rounded,
                 label: '19K+ Meds',
+                color: AppColors.primary,
               ),
             ],
           ),
@@ -45,10 +62,20 @@ class HomeTrustBanner extends StatelessWidget {
 
   Widget _buildDivider() {
     return Container(
-      width: 0.5,
-      height: 28,
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      color: const Color(0xFF9FE1CB),
+      width: 1,
+      height: 22,
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.transparent,
+            AppColors.primary.withOpacity(0.3),
+            Colors.transparent,
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
     );
   }
 }
@@ -56,10 +83,12 @@ class HomeTrustBanner extends StatelessWidget {
 class _TrustBadge extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color color;
 
   const _TrustBadge({
     required this.icon,
     required this.label,
+    required this.color,
   });
 
   @override
@@ -69,14 +98,25 @@ class _TrustBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: AppColors.primary),
-          const SizedBox(width: 6),
+          Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: Icon(icon, size: 14, color: color),
+            ),
+          ),
+          const SizedBox(width: 7),
           Text(
             label,
             style: GoogleFonts.sora(
-              fontSize: 11,
+              fontSize: 11.5,
               fontWeight: FontWeight.w600,
-              color: AppColors.primary,
+              color: color,
+              letterSpacing: 0.1,
             ),
           ),
         ],
@@ -99,11 +139,26 @@ class StoreClosedBanner extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        color: const Color(0xFFFFEBEE),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF0F0),
+          border: Border(
+            bottom: BorderSide(color: Colors.red.withOpacity(0.15), width: 1),
+          ),
+        ),
         child: Row(
           children: [
-            const Icon(Icons.access_time, color: Colors.red, size: 16),
-            const SizedBox(width: 8),
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Center(
+                child: Icon(Icons.access_time, color: Colors.red, size: 15),
+              ),
+            ),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 'Store is currently closed. Opens at $storeOpenTime. You can still browse!',

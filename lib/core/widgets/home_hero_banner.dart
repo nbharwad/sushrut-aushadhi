@@ -31,7 +31,7 @@ class _HomeHeroBannerState extends State<HomeHeroBanner> {
     return SliverToBoxAdapter(
       child: Column(
         children: [
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: LayoutBuilder(
@@ -39,7 +39,7 @@ class _HomeHeroBannerState extends State<HomeHeroBanner> {
                 final bannerAspectRatio = constraints.maxWidth < 380
                     ? 1.08
                     : constraints.maxWidth < 600
-                        ? 1.55
+                        ? 1.6
                         : 2.25;
                 return AspectRatio(
                   aspectRatio: bannerAspectRatio,
@@ -48,11 +48,11 @@ class _HomeHeroBannerState extends State<HomeHeroBanner> {
                     itemCount: widget.banners.length,
                     onPageChanged: widget.onPageChanged,
                     itemBuilder: (context, index) {
-                      final banner =
-                          widget.banners[index] as Map<String, dynamic>;
+                      final banner = widget.banners[index] as Map<String, dynamic>;
                       return Padding(
                         padding: EdgeInsets.only(
-                            right: index == widget.banners.length - 1 ? 0 : 12),
+                          right: index == widget.banners.length - 1 ? 0 : 14,
+                        ),
                         child: _BannerCard(
                           banner: banner,
                           isEven: index.isEven,
@@ -64,7 +64,7 @@ class _HomeHeroBannerState extends State<HomeHeroBanner> {
               },
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _buildPageIndicators(),
         ],
       ),
@@ -77,14 +77,14 @@ class _HomeHeroBannerState extends State<HomeHeroBanner> {
       children: List.generate(
         widget.banners.length,
         (i) => AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 250),
           margin: const EdgeInsets.symmetric(horizontal: 3),
-          width: widget.currentBanner == i ? 18 : 6,
+          width: widget.currentBanner == i ? 22 : 6,
           height: 6,
           decoration: BoxDecoration(
             color: widget.currentBanner == i
                 ? AppColors.primary
-                : const Color(0xFFD8DDD8),
+                : AppColors.divider,
             borderRadius: BorderRadius.circular(99),
           ),
         ),
@@ -109,45 +109,71 @@ class _BannerCard extends StatelessWidget {
     final subtitle = banner['subtitle']?.toString() ?? '';
     final buttonText = banner['buttonText']?.toString() ?? 'Shop Now';
 
+    final gradientColors = isEven
+        ? [const Color(0xFF0A5C45), const Color(0xFF1AAE7A)]
+        : [const Color(0xFF0760A8), const Color(0xFF0B9FE0)];
+
+    final buttonColor = isEven ? AppColors.primary : AppColors.labPrimary;
+
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(
-          colors: isEven
-              ? [const Color(0xFF0F6E56), const Color(0xFF1D9E75)]
-              : [const Color(0xFF0277BD), const Color(0xFF0288D1)],
+          colors: gradientColors,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: gradientColors[0].withOpacity(0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+            spreadRadius: -6,
+          ),
+        ],
       ),
       child: Stack(
         children: [
+          // Decorative background shapes
           Positioned(
-            top: -20,
-            right: -20,
+            top: -30,
+            right: -30,
             child: Container(
-              width: 100,
-              height: 100,
+              width: 130,
+              height: 130,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.1),
+                color: Colors.white.withOpacity(0.08),
               ),
             ),
           ),
           Positioned(
-            bottom: -15,
-            left: -15,
+            bottom: -20,
+            left: -20,
             child: Container(
-              width: 80,
-              height: 80,
+              width: 90,
+              height: 90,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.08),
+                color: Colors.white.withOpacity(0.06),
               ),
             ),
           ),
+          Positioned(
+            top: 20,
+            right: 100,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.06),
+              ),
+            ),
+          ),
+          // Content
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(22),
             child: Row(
               children: [
                 Expanded(
@@ -160,75 +186,94 @@ class _BannerCard extends StatelessWidget {
                           title,
                           style: GoogleFonts.sora(
                             color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                            height: 1.2,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                       ],
                       if (subtitle.isNotEmpty) ...[
                         Text(
                           subtitle,
                           style: GoogleFonts.sora(
-                            color: Colors.white.withValues(alpha: 0.85),
+                            color: Colors.white.withOpacity(0.82),
                             fontSize: 12,
+                            height: 1.4,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                       ],
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                          horizontal: 18,
+                          vertical: 9,
                         ),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: Text(
                           buttonText,
                           style: GoogleFonts.sora(
-                            color: isEven
-                                ? AppColors.primary
-                                : AppColors.labPrimary,
+                            color: buttonColor,
                             fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.2,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 12),
                 if (imageUrl.isNotEmpty)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: CachedNetworkImage(
-                      imageUrl: imageUrl,
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        width: 80,
-                        height: 80,
-                        color: Colors.white.withValues(alpha: 0.2),
-                        child: const Icon(
-                          Icons.image,
-                          color: Colors.white,
-                          size: 32,
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      color: Colors.white.withOpacity(0.15),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        width: 82,
+                        height: 82,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          width: 82,
+                          height: 82,
+                          color: Colors.white.withOpacity(0.2),
+                          child: const Icon(Icons.image, color: Colors.white, size: 32),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          width: 82,
+                          height: 82,
+                          color: Colors.white.withOpacity(0.2),
+                          child: const Icon(Icons.medication_rounded, color: Colors.white, size: 32),
                         ),
                       ),
-                      errorWidget: (_, __, ___) => Container(
-                        width: 80,
-                        height: 80,
-                        color: Colors.white.withValues(alpha: 0.2),
-                        child: const Icon(
-                          Icons.medication_rounded,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    width: 82,
+                    height: 82,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.medication_rounded, color: Colors.white, size: 36),
                     ),
                   ),
               ],

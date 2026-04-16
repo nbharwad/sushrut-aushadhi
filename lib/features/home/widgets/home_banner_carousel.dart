@@ -91,7 +91,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
               width: _currentBanner == i ? 18 : 6,
               height: 6,
               decoration: BoxDecoration(
-                color: _currentBanner == i ? AppColors.primary : const Color(0xFFD8DDD8),
+                color: _currentBanner == i ? AppColors.primary : AppColors.divider,
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
@@ -116,12 +116,22 @@ class _ResponsiveBannerCard extends StatelessWidget {
         final contentWidth = constraints.maxWidth * (compact ? 0.6 : 0.52);
         return Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF0F6E56), Color(0xFF4ECBA5)],
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              colors: isEven
+                  ? const [Color(0xFF0A5C45), Color(0xFF1AAE7A)]
+                  : const [Color(0xFF0760A8), Color(0xFF0B9FE0)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: (isEven ? const Color(0xFF0A5C45) : const Color(0xFF0760A8)).withOpacity(0.30),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+                spreadRadius: -4,
+              ),
+            ],
           ),
           child: Stack(
             children: [
@@ -216,9 +226,9 @@ class _ResponsiveBannerCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        "${banner['btnText'] ?? 'Order Now'} ->",
+                        "${banner['btnText'] ?? 'Order Now'} →",
                         style: GoogleFonts.sora(
-                          color: AppColors.primary,
+                          color: isEven ? AppColors.primary : AppColors.labPrimary,
                           fontSize: compact ? 11 : 12,
                           fontWeight: FontWeight.w700,
                         ),
