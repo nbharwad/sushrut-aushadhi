@@ -4,15 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../cart/widgets/delivery_details_sheet.dart';
 import '../../models/lab_order_model.dart';
-import '../../models/lab_package_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/lab_providers.dart';
-import '../../services/delivery_details_service.dart';
-import 'booking_selection_resolver.dart';
-import 'widgets/booking/booking_widgets.dart';
 
 class LabOrderRequestScreen extends ConsumerStatefulWidget {
   final String? packageId;
@@ -39,16 +34,7 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
   bool _isSubmitting = false;
   bool _isPackageBooking = false;
 
-  SelectionMode _selectionMode = SelectionMode.packages;
-  LabPackageModel? _selectedPackage;
-  DateTime? _selectedDate;
-  String? _selectedTimeSlot;
-  String? _mobileNumber;
-
   final Map<String, bool> _selectedTests = {};
-
-  bool _showAddressError = false;
-  bool _showSlotError = false;
 
   @override
   void initState() {
@@ -56,16 +42,14 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
     _isPackageBooking =
         widget.packageId != null && widget.preselectedTestIds.isNotEmpty;
 
-    if (_isPackageBooking) {
-      _selectionMode = SelectionMode.packages;
-      for (final testId in widget.preselectedTestIds) {
-        _selectedTests[testId] = true;
-      }
-    }
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _prefillAddressFromProfile();
-      _prefillAddressFromDeliveryDetails();
+      final u = ref.read(currentUserProvider).valueOrNull;
+      if (u == null) return;
+      if (u.address.isNotEmpty) {
+        _addressController.text = u.address;
+      } else if (u.deliveryAddress.line1.isNotEmpty) {
+        _addressController.text = u.deliveryAddress.toDisplayString();
+      }
     });
   }
 
@@ -77,154 +61,56 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
   }
 
   double _getTotalAmount(List<LabTestModel> tests) {
-    if (_selectionMode == SelectionMode.packages && _selectedPackage != null) {
-      return _selectedPackage!.price;
-    }
+    if (_isPackageBooking) return widget.packagePrice ?? 0;
     return tests
         .where((test) => _selectedTests[test.id] == true)
         .fold(0, (sum, test) => sum + test.price);
   }
 
   List<LabTestItem> _getSelectedTestItems(List<LabTestModel> tests) {
-    final normalizedSelection = _getEffectiveSelectedTests(tests);
-
-    if (tests.isEmpty && _selectionMode != SelectionMode.packages) {
-      return [];
-    }
-
-    if (_selectionMode == SelectionMode.packages) {
-      final resolvedItems = buildSelectedTestItems(normalizedSelection, tests);
-      if (resolvedItems.isNotEmpty) {
-        return resolvedItems;
-      }
-
-      if (_selectedPackage != null) {
-        if (_selectedPackage!.testNames.isNotEmpty) {
-          return _selectedPackage!.testNames
-              .map((name) => LabTestItem(testId: '', testName: name, price: 0))
-              .toList();
+    if (_isPackageBooking) {
+      // For package bookings, map preselected test IDs to LabTestItems
+      return widget.preselectedTestIds.asMap().entries.map((entry) {
+        final testId = entry.value;
+        final matching = tests.where((t) => t.id == testId).toList();
+        if (matching.isNotEmpty) {
+          final test = matching.first;
+          return LabTestItem(
+              testId: test.id, testName: test.name, price: test.price);
         }
-
-        return _selectedPackage!.testIds
-            .map((testId) =>
-                LabTestItem(testId: testId, testName: 'Test', price: 0))
-            .toList();
-      }
-
-      return [];
+        return LabTestItem(testId: testId, testName: 'Test', price: 0);
+      }).toList();
     }
-
-    return buildSelectedTestItems(normalizedSelection, tests);
-  }
-
-  Map<String, bool> _getEffectiveSelectedTests(List<LabTestModel> tests) {
-    if (_selectionMode == SelectionMode.packages && _selectedPackage != null) {
-      final resolvedSelection =
-          resolvePackageTestSelection(_selectedPackage!, tests);
-      if (resolvedSelection.isNotEmpty) {
-        return resolvedSelection;
-      }
-    }
-
-    return Map<String, bool>.from(_selectedTests);
-  }
-
-  void _applyPackageSelection(
-    LabPackageModel package,
-    List<LabTestModel> tests,
-  ) {
-    final resolvedSelection = resolvePackageTestSelection(package, tests);
-    setState(() {
-      _selectedPackage = package;
-      _selectionMode = SelectionMode.packages;
-      _selectedTests
-        ..clear()
-        ..addAll(resolvedSelection);
-    });
-  }
-
-  void _prefillAddressFromProfile() {
-    final user = ref.read(currentUserProvider).valueOrNull;
-    if (user == null || _addressController.text.trim().isNotEmpty) return;
-
-    if (user.address.isNotEmpty) {
-      _addressController.text = user.address;
-    } else if (user.deliveryAddress.line1.isNotEmpty) {
-      _addressController.text = user.deliveryAddress.toDisplayString();
-    }
-  }
-
-  Future<void> _prefillAddressFromDeliveryDetails() async {
-    final details = await DeliveryDetailsService.getDetails();
-    if (!mounted || details.address.trim().isEmpty) return;
-    setState(() {
-      _addressController.text = details.address.trim();
-      _mobileNumber = details.phone;
-    });
-  }
-
-  void _showDeliveryDetailsSheet({
-    required List<LabTestModel> tests,
-    required UserModel user,
-    required DeliveryDetails existingDetails,
-  }) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (_) => DeliveryDetailsSheet(
-        existingDetails: existingDetails,
-        onSaved: (details) async {
-          setState(() {
-            _addressController.text = details.address;
-            _mobileNumber = details.phone;
-          });
-          await _createLabOrder(tests, user, details);
-        },
-      ),
-    );
+    return tests
+        .where((test) => _selectedTests[test.id] == true)
+        .map((test) => LabTestItem(
+            testId: test.id, testName: test.name, price: test.price))
+        .toList();
   }
 
   Future<void> _submitOrder(List<LabTestModel> tests, UserModel? user) async {
-    if (tests.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Tests are still loading. Please wait a moment.',
-            style: GoogleFonts.sora(),
-          ),
-        ),
-      );
-      return;
-    }
-
     final selectedItems = _getSelectedTestItems(tests);
     final totalAmount = _getTotalAmount(tests);
-    final resolvedSelection = _getEffectiveSelectedTests(tests);
 
-    final isPackageMode = _selectionMode == SelectionMode.packages;
-    final hasSelection = isPackageMode
-        ? selectedItems.isNotEmpty
-        : selectedItems.isNotEmpty;
-
-    if (!hasSelection) {
+    if (selectedItems.isEmpty && !_isPackageBooking) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            isPackageMode
-                ? (_selectedPackage == null
-                    ? 'Please select a package'
-                    : 'Selected package has no valid tests. Please choose another package.')
-                : 'Please select at least one test',
-            style: GoogleFonts.sora(),
-          ),
-        ),
+            content: Text('Please select at least one test',
+                style: GoogleFonts.sora())),
       );
       return;
     }
 
+    if (_addressController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text('Please enter your address', style: GoogleFonts.sora())),
+      );
+      return;
+    }
+
+    // Validate user data before showing loading state
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -234,6 +120,8 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
       );
       return;
     }
+
+    debugPrint('[LabBooking] name="${user.name}" phone="${user.phone}"');
 
     if (user.name.trim().isEmpty) {
       if (!mounted) return;
@@ -253,17 +141,31 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
       return;
     }
 
-    if (_selectionMode == SelectionMode.packages &&
-        (_selectedPackage == null ||
-            _selectedPackage!.price <= 0 ||
-            resolvedSelection.isEmpty)) {
+    if (user.phone.trim().isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _selectedPackage == null || resolvedSelection.isEmpty
-                ? 'Selected package has no valid tests. Please choose another package.'
-                : 'Package price is unavailable. Please try again.',
+            'Please add your mobile number to your profile before booking a lab test.',
+            style: GoogleFonts.sora(),
+          ),
+          action: SnackBarAction(
+            label: 'Edit Profile',
+            onPressed: () => context.push('/profile'),
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+
+    if (_isPackageBooking &&
+        (widget.packagePrice == null || widget.packagePrice! <= 0)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Package price is unavailable. Please try again.',
             style: GoogleFonts.sora(),
           ),
         ),
@@ -271,96 +173,27 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
       return;
     }
 
-    setState(() {
-      _showAddressError = _addressController.text.trim().isEmpty;
-    });
-
-    if (_addressController.text.trim().isEmpty) {
-      return;
-    }
-
     setState(() => _isSubmitting = true);
 
     try {
-      final details = await DeliveryDetailsService.getDetails();
-
-      if (!mounted) return;
-
-      if (!details.isComplete) {
-        setState(() => _isSubmitting = false);
-        _showDeliveryDetailsSheet(
-          tests: tests,
-          user: user,
-          existingDetails: details,
-        );
-        return;
-      }
-
-      _addressController.text = details.address;
-      setState(() => _mobileNumber = details.phone);
-      await _createLabOrder(tests, user, details);
-    } catch (e, stack) {
-      if (!mounted) return;
-      if (_isSubmitting) {
-        setState(() => _isSubmitting = false);
-      }
-      debugPrint('[LabBooking] Error: $e');
-      debugPrint('[LabBooking] Stack: $stack');
-      final raw = e.toString();
-      final message = raw.contains('Missing mobile number')
-          ? 'Please complete your mobile number in delivery details before booking a lab test.'
-          : raw.contains('Missing required user')
-              ? 'Please complete your profile before booking.'
-              : raw.contains('Invalid test count')
-                  ? (_selectionMode == SelectionMode.packages
-                      ? 'Selected package has no valid tests. Please choose another package.'
-                      : 'Please select at least one test.')
-                  : raw.contains('Invalid total amount')
-                      ? 'Total amount is invalid. Please try again.'
-                      : raw.contains('permission-denied')
-                          ? 'Booking failed due to a permissions error. Please contact support.'
-                          : 'Failed to book lab test. Please try again.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message, style: GoogleFonts.sora())),
-      );
-    }
-  }
-
-  Future<void> _createLabOrder(
-    List<LabTestModel> tests,
-    UserModel user,
-    DeliveryDetails details,
-  ) async {
-    setState(() => _isSubmitting = true);
-
-    try {
-      final selectedItems = _getSelectedTestItems(tests);
-      final totalAmount = _getTotalAmount(tests);
-
       String? notesText = _notesController.text.trim().isNotEmpty
           ? _notesController.text.trim()
           : null;
 
-      if (_selectionMode == SelectionMode.packages &&
-          _selectedPackage != null) {
-        final packageNote = 'Package: ${_selectedPackage!.name}';
+      // Tag package bookings in notes for traceability
+      if (_isPackageBooking && widget.packageId != null) {
+        final packageNote =
+            'Package: ${widget.packageName ?? widget.packageId}';
         notesText =
             notesText != null ? '$packageNote | $notesText' : packageNote;
-      }
-
-      if (_selectedDate != null && _selectedTimeSlot != null) {
-        final dateStr =
-            '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}';
-        final slotNote = 'Slot: $dateStr $_selectedTimeSlot';
-        notesText = notesText != null ? '$notesText | $slotNote' : slotNote;
       }
 
       final order = LabOrderModel(
         orderId: '',
         userId: user.uid,
-        userPhone: details.phone,
+        userPhone: user.phone,
         userName: user.name,
-        homeCollectionAddress: details.address,
+        homeCollectionAddress: _addressController.text.trim(),
         tests: selectedItems,
         totalAmount: totalAmount,
         status: LabOrderStatus.pending,
@@ -389,6 +222,7 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
         ),
       );
 
+      // pushReplacement so back from detail goes to orders list, not this form
       context.pushReplacement('/lab-order/$orderId');
     } catch (e, stack) {
       if (!mounted) return;
@@ -396,13 +230,11 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
       debugPrint('[LabBooking] Stack: $stack');
       final raw = e.toString();
       final message = raw.contains('Missing mobile number')
-          ? 'Please complete your mobile number in delivery details before booking a lab test.'
+          ? 'Please add your mobile number to your profile before booking a lab test.'
           : raw.contains('Missing required user')
-              ? 'Please complete your profile before booking.'
+              ? 'Please complete your profile (name & phone) before booking.'
               : raw.contains('Invalid test count')
-                  ? (_selectionMode == SelectionMode.packages
-                      ? 'Selected package has no valid tests. Please choose another package.'
-                      : 'Please select at least one test.')
+                  ? 'Please select at least one test.'
                   : raw.contains('Invalid total amount')
                       ? 'Total amount is invalid. Please try again.'
                       : raw.contains('permission-denied')
@@ -412,192 +244,45 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
         SnackBar(content: Text(message, style: GoogleFonts.sora())),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+      if (mounted) setState(() => _isSubmitting = false);
     }
-  }
-
-  void _onDateSelected(DateTime date) {
-    setState(() {
-      _selectedDate = date;
-      _selectedTimeSlot = null;
-      _showSlotError = false;
-    });
-  }
-
-  void _onTimeSlotSelected(String slot) {
-    setState(() {
-      _selectedTimeSlot = slot;
-      _showSlotError = false;
-    });
-  }
-
-  void _onEditAddress() async {
-    final details = await DeliveryDetailsService.getDetails();
-    if (!mounted) return;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (_) => DeliveryDetailsSheet(
-        existingDetails: details,
-        onSaved: (newDetails) async {
-          setState(() {
-            _addressController.text = newDetails.address;
-            _mobileNumber = newDetails.phone;
-            _showAddressError = false;
-          });
-        },
-      ),
-    );
-  }
-
-  String? get _formattedDate {
-    if (_selectedDate == null) return null;
-    final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
-    ];
-    return '${weekdays[_selectedDate!.weekday - 1]}, ${months[_selectedDate!.month - 1]} ${_selectedDate!.day}';
   }
 
   @override
   Widget build(BuildContext context) {
     final testsAsync = ref.watch(labTestsProvider);
-    final packagesAsync = ref.watch(labPackagesProvider);
     final user = ref.watch(currentUserProvider).valueOrNull;
+    final isCompact = MediaQuery.of(context).size.width < 360;
     final tests = testsAsync.valueOrNull ?? [];
-    final packages = packagesAsync.valueOrNull ?? [];
-
-    // Auto-select package if navigated from package detail screen
-    if (_selectedPackage == null &&
-        widget.packageId != null &&
-        packages.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final foundPackage =
-            packages.where((p) => p.id == widget.packageId).firstOrNull;
-        if (foundPackage != null && mounted) {
-          _applyPackageSelection(foundPackage, tests);
-        }
-      });
-    }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9F7),
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        bottom: false,
         child: Column(
           children: [
+            _buildAppBar(isCompact),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    BookingHeader(
-                      title: _selectionMode == SelectionMode.packages &&
-                              _selectedPackage != null
-                          ? 'Confirm Booking'
-                          : 'Book Lab Tests',
-                      subtitle: _selectionMode == SelectionMode.packages &&
-                              _selectedPackage != null
-                          ? 'Review and confirm your package booking'
-                          : 'Review your details before booking',
-                      isPackageBooking:
-                          _selectionMode == SelectionMode.packages,
-                    ),
+                    if (_isPackageBooking)
+                      _buildPackageSummaryCard()
+                    else
+                      _buildTestSelection(testsAsync),
                     const SizedBox(height: 20),
-                    testsAsync.when(
-                      data: (testList) => packagesAsync.when(
-                        data: (packageList) => TestSelector(
-                          tests: testList,
-                          packages: packageList,
-                          initialMode: _selectionMode,
-                          onModeChanged: (mode) {
-                            setState(() {
-                              _selectionMode = mode;
-                              if (mode == SelectionMode.individualTests) {
-                                _selectedPackage = null;
-                              }
-                            });
-                          },
-                          onPackageSelected: (package) {
-                            if (package != null) {
-                              _applyPackageSelection(package, testList);
-                            }
-                          },
-                          onTestsSelected: (selected) {
-                            setState(() {
-                              _selectedTests.clear();
-                              _selectedTests.addAll(selected);
-                            });
-                          },
-                          selectedPackage: _selectedPackage,
-                          selectedTests: _selectedTests,
-                        ),
-                        loading: () =>
-                            const Center(child: CircularProgressIndicator()),
-                        error: (e, _) => Center(child: Text('Error: $e')),
-                      ),
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (e, _) => Center(child: Text('Error: $e')),
-                    ),
-                    const SizedBox(height: 16),
-                    AddressCard(
-                      address: _addressController.text,
-                      mobileNumber: _mobileNumber,
-                      onEdit: _onEditAddress,
-                      hasError: _showAddressError,
-                    ),
-                    const SizedBox(height: 16),
-                    SlotSelector(
-                      selectedDate: _selectedDate,
-                      selectedTimeSlot: _selectedTimeSlot,
-                      onDateSelected: _onDateSelected,
-                      onTimeSlotSelected: _onTimeSlotSelected,
-                      hasError: _showSlotError,
-                    ),
-                    const SizedBox(height: 16),
-                    PaymentSummary(
-                      testCount: _selectionMode == SelectionMode.packages &&
-                              _selectedPackage != null
-                          ? _selectedPackage!.testCount
-                          : _getSelectedTestItems(tests).length,
-                      totalAmount: _getTotalAmount(tests),
-                      scheduledDate: _formattedDate,
-                      scheduledTime: _selectedTimeSlot,
-                    ),
-                    const SizedBox(height: 16),
+                    _buildAddressSection(),
+                    const SizedBox(height: 20),
                     _buildNotesSection(),
-                    const SizedBox(height: 100),
+                    const SizedBox(height: 24),
+                    _buildOrderSummary(tests),
+                    const SizedBox(height: 24),
+                    _buildSubmitButton(tests, user),
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
-            ),
-            ConfirmButton(
-              isLoading: _isSubmitting,
-              isEnabled: (_selectionMode == SelectionMode.packages &&
-                      (_selectedPackage != null ||
-                          _selectedTests.isNotEmpty)) ||
-                  (_selectionMode == SelectionMode.individualTests &&
-                      _selectedTests.values.any((v) => v)),
-              onPressed: () => _submitOrder(tests, user),
             ),
           ],
         ),
@@ -605,90 +290,501 @@ class _LabOrderRequestScreenState extends ConsumerState<LabOrderRequestScreen> {
     );
   }
 
-  Widget _buildNotesSection() {
+  Widget _buildAppBar(bool isCompact) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.labPrimary, AppColors.labSecondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Row(
+          IconButton(
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3E0),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.note_rounded,
-                    color: Color(0xFFFB8C00),
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    'Additional Notes',
-                    style: GoogleFonts.sora(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
                 Text(
-                  'Optional',
+                  _isPackageBooking ? 'Confirm Booking' : 'Book Lab Tests',
                   style: GoogleFonts.sora(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: Colors.white,
+                    fontSize: isCompact ? 16 : 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _isPackageBooking
+                      ? 'Review and confirm your package booking'
+                      : 'Select tests and provide address for sample collection',
+                  style: GoogleFonts.sora(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontSize: 11,
                   ),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextFormField(
-              controller: _notesController,
-              maxLines: 2,
-              decoration: InputDecoration(
-                hintText: 'Any special instructions (e.g., I am diabetic)...',
-                hintStyle: GoogleFonts.sora(
-                  fontSize: 14,
-                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPackageSummaryCard() {
+    final testsAsync = ref.watch(labTestsProvider);
+    final allTests = testsAsync.valueOrNull ?? [];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.labPrimaryLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.labPrimaryLight,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE8ECE7)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE8ECE7)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide:
-                      const BorderSide(color: AppColors.labPrimary, width: 1.5),
-                ),
-                contentPadding: const EdgeInsets.all(14),
+                child: const Icon(Icons.inventory_2,
+                    color: AppColors.labPrimary, size: 20),
               ),
-              style: GoogleFonts.sora(fontSize: 14),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.packageName ?? 'Lab Package',
+                      style: GoogleFonts.sora(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      '${widget.preselectedTestIds.length} tests included',
+                      style: GoogleFonts.sora(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (allTests.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: Text(
+                'View included tests',
+                style: GoogleFonts.sora(
+                  fontSize: 13,
+                  color: AppColors.labPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              children: widget.preselectedTestIds.map((testId) {
+                final matching = allTests.where((t) => t.id == testId).toList();
+                final testName =
+                    matching.isNotEmpty ? matching.first.name : testId;
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(top: 4, left: 4),
+                    decoration: const BoxDecoration(
+                      color: AppColors.labPrimary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  title: Text(testName, style: GoogleFonts.sora(fontSize: 13)),
+                  visualDensity: VisualDensity.compact,
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTestSelection(AsyncValue<List<LabTestModel>> tests) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8ECE7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.science, color: AppColors.labPrimary, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Select Tests',
+                style:
+                    GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          tests.when(
+            data: (testList) {
+              if (testList.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.science_outlined,
+                            size: 64, color: Color(0xFFBDBDBD)),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No tests available',
+                          style: GoogleFonts.sora(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Lab tests will be available soon',
+                          style: GoogleFonts.sora(
+                              fontSize: 14, color: AppColors.textSecondary),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () => ref.invalidate(labTestsProvider),
+                          icon: const Icon(Icons.refresh),
+                          label: Text('Retry', style: GoogleFonts.sora()),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.labPrimary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              return Column(
+                  children:
+                      testList.map((test) => _buildTestTile(test)).toList());
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error loading tests',
+                      style: GoogleFonts.sora(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(e.toString(),
+                        style: GoogleFonts.sora(fontSize: 12),
+                        textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => ref.invalidate(labTestsProvider),
+                      icon: const Icon(Icons.refresh),
+                      label: Text('Retry', style: GoogleFonts.sora()),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.labPrimary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTestTile(LabTestModel test) {
+    final isSelected = _selectedTests[test.id] ?? false;
+
+    return InkWell(
+      onTap: () => setState(() => _selectedTests[test.id] = !isSelected),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color:
+              isSelected ? AppColors.labPrimaryLight : const Color(0xFFFAFAFA),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppColors.labPrimary : const Color(0xFFE8ECE7),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.labPrimary : Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected
+                      ? AppColors.labPrimary
+                      : const Color(0xFFBDBDBD),
+                ),
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                test.name,
+                style: GoogleFonts.sora(
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ),
+            Text(
+              '\u20B9${test.price.toStringAsFixed(0)}',
+              style: GoogleFonts.sora(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.labPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddressSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8ECE7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.location_on, color: Color(0xFF1E88E5), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Sample Collection Address',
+                style:
+                    GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Our phlebotomist will visit this address for sample collection',
+            style:
+                GoogleFonts.sora(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _addressController,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'Enter your full address...',
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.labPrimary),
+              ),
+              contentPadding: const EdgeInsets.all(12),
+            ),
+            style: GoogleFonts.sora(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotesSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8ECE7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.note, color: Color(0xFFFB8C00), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Additional Notes (Optional)',
+                style:
+                    GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _notesController,
+            maxLines: 2,
+            decoration: InputDecoration(
+              hintText: 'Any special instructions (e.g., I am diabetic)...',
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.labPrimary),
+              ),
+              contentPadding: const EdgeInsets.all(12),
+            ),
+            style: GoogleFonts.sora(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderSummary(List<LabTestModel> tests) {
+    final total =
+        _isPackageBooking ? (widget.packagePrice ?? 0) : _getTotalAmount(tests);
+    final count = _isPackageBooking
+        ? widget.preselectedTestIds.length
+        : _getSelectedTestItems(tests).length;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.labPrimaryLight,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Tests',
+                  style: GoogleFonts.sora(
+                      fontSize: 14, color: AppColors.textSecondary)),
+              Text(
+                '$count ${count == 1 ? 'test' : 'tests'}',
+                style:
+                    GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Divider(),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Total Amount',
+                style:
+                    GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '\u20B9${total.toStringAsFixed(0)}',
+                style: GoogleFonts.sora(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.labPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Payment: Cash on Collection',
+            style:
+                GoogleFonts.sora(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubmitButton(List<LabTestModel> tests, UserModel? user) {
+    final hasTests = _isPackageBooking
+        ? widget.preselectedTestIds.isNotEmpty
+        : _getSelectedTestItems(tests).isNotEmpty;
+
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed:
+            _isSubmitting || !hasTests ? null : () => _submitOrder(tests, user),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.labPrimary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          disabledBackgroundColor: AppColors.labPrimary.withValues(alpha: 0.5),
+        ),
+        child: _isSubmitting
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+            : Text(
+                'Confirm Booking',
+                style:
+                    GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
       ),
     );
   }

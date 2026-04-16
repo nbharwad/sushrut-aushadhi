@@ -1,24 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/admin_lab_order_card.dart';
 import '../../models/lab_order_model.dart';
 import '../../providers/lab_providers.dart';
-
-String mapAdminLabError(Object error) {
-  final raw = error.toString();
-  if (raw.contains('permission-denied') || raw.contains('Permission denied')) {
-    return 'Permission denied. Ensure the admin account has refreshed admin access and Firebase rules are deployed.';
-  }
-  if (raw.contains('unauthorized') || raw.contains('object-not-found')) {
-    return 'PDF upload failed. Check Firebase Storage rules for lab reports.';
-  }
-  return 'Error: $raw';
-}
 
 class AdminLabOrdersScreen extends ConsumerStatefulWidget {
   const AdminLabOrdersScreen({super.key});
@@ -32,7 +23,6 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   String _searchQuery = '';
-  String? _uploadingOrderId;
 
   @override
   void initState() {
@@ -388,11 +378,6 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
       onTap: () => context.push('/admin/lab-order/${order.orderId}'),
       onCallTap: () {},
       onWhatsAppTap: () {},
-      onStatusTap: (status) => _updateOrderStatus(order.orderId, status),
-      onUploadPdfTap: order.status == LabOrderStatus.processing
-          ? () => _pickAndUploadFile(context, ref, order.orderId)
-          : null,
-      isUploadingPdf: _uploadingOrderId == order.orderId,
     );
   }
 
@@ -709,7 +694,7 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
       case LabOrderStatus.sampleCollected:
         return [LabOrderStatus.processing];
       case LabOrderStatus.processing:
-        return [];
+        return [LabOrderStatus.completed];
       case LabOrderStatus.completed:
       case LabOrderStatus.cancelled:
         return [];
@@ -730,71 +715,8 @@ class _AdminLabOrdersScreenState extends ConsumerState<AdminLabOrdersScreen>
       );
     } catch (e) {
       if (!mounted) return;
-      final message = mapAdminLabError(e);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message, style: GoogleFonts.sora())),
-      );
-    }
-  }
-
-  Future<void> _pickAndUploadFile(
-      BuildContext context, WidgetRef ref, String orderId) async {
-    try {
-      if (_uploadingOrderId != null) return;
-
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
-        allowMultiple: false,
-      );
-
-      if (result == null || result.files.isEmpty) return;
-
-      final file = result.files.first;
-      if (file.path == null) {
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content:
-                  Text('Could not access file', style: GoogleFonts.sora())),
-        );
-        return;
-      }
-
-      if (mounted) {
-        setState(() => _uploadingOrderId = orderId);
-      }
-      final labService = ref.read(labServiceProvider);
-
-      await labService.uploadLabResult(
-        orderId,
-        file.path!,
-        file.name,
-      );
-      await labService.updateLabOrderStatus(
-        orderId,
-        LabOrderStatus.completed,
-        note: 'Lab result uploaded',
-      );
-
-      if (mounted) {
-        setState(() => _uploadingOrderId = null);
-      }
-
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Lab result uploaded and order completed',
-                style: GoogleFonts.sora())),
-      );
-    } catch (e) {
-      if (mounted) {
-        setState(() => _uploadingOrderId = null);
-      }
-      if (!context.mounted) return;
-      final message = mapAdminLabError(e);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message, style: GoogleFonts.sora())),
+        SnackBar(content: Text('Error: $e', style: GoogleFonts.sora())),
       );
     }
   }
@@ -1130,7 +1052,7 @@ class _AdminLabOrderDetailScreenState
       case LabOrderStatus.sampleCollected:
         return [LabOrderStatus.processing];
       case LabOrderStatus.processing:
-        return [];
+        return [LabOrderStatus.completed];
       case LabOrderStatus.completed:
       case LabOrderStatus.cancelled:
         return [];
@@ -1333,33 +1255,44 @@ class _AdminLabOrderDetailScreenState
       }
 
       _uploadProgress.value = 0.0;
-      final labService = ref.read(labServiceProvider);
 
-      await labService.uploadLabResult(
-        orderId,
-        file.path!,
-        file.name,
-        onProgress: (progress) => _uploadProgress.value = progress,
-      );
-      await labService.updateLabOrderStatus(
-        orderId,
-        LabOrderStatus.completed,
-        note: 'Lab result uploaded',
-      );
-      _uploadProgress.value = null;
+      final uploadTask = FirebaseStorage.instance
+          .ref()
+          .child('lab_results')
+          .child(orderId)
+          .child(file.name)
+          .putFile(
+            File(file.path!),
+            SettableMetadata(contentType: 'application/pdf'),
+          );
+
+      uploadTask.snapshotEvents.listen((task) {
+        if (task.state == TaskState.running) {
+          _uploadProgress.value = task.bytesTransferred / task.totalBytes;
+        } else if (task.state == TaskState.success) {
+          _uploadProgress.value = null;
+        }
+      });
+
+      final snapshot = await uploadTask;
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+
+      await ref.read(labServiceProvider).updateLabOrderStatus(
+          orderId, LabOrderStatus.completed,
+          note: 'Lab result uploaded');
 
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Lab result uploaded and order completed',
+            content: Text('Lab result uploaded successfully',
                 style: GoogleFonts.sora())),
       );
     } catch (e) {
       _uploadProgress.value = null;
       if (!context.mounted) return;
-      final message = mapAdminLabError(e);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message, style: GoogleFonts.sora())),
+        SnackBar(
+            content: Text('Error uploading: $e', style: GoogleFonts.sora())),
       );
     }
   }

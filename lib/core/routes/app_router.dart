@@ -10,9 +10,7 @@ import '../../features/admin/admin_lab_orders_screen.dart';
 import '../../features/admin/admin_lab_packages_screen.dart';
 import '../../features/admin/admin_lab_tests_screen.dart';
 import '../../features/admin/admin_order_detail_screen.dart';
-import '../../features/admin/screens/admin_medicine_simple_screen.dart';
-import '../../features/admin/screens/admin_lab_screen.dart';
-import '../../features/admin/screens/admin_prescription_screen.dart';
+import '../../features/admin/admin_shell.dart';
 import '../../features/lab/lab_order_detail_screen.dart';
 import '../../features/lab/lab_order_request_screen.dart';
 import '../../features/lab/lab_orders_screen.dart';
@@ -252,37 +250,21 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/admin',
-        redirect: (context, state) => '/admin/medicine',
-      ),
-      GoRoute(
-        path: '/admin/medicine',
-        builder: (context, state) => const AdminMedicineSimpleScreen(),
-      ),
-      GoRoute(
-        path: '/admin/medicine-simple',
-        redirect: (context, state) => '/admin/medicine',
-      ),
-      GoRoute(
-        path: '/admin/lab',
-        builder: (context, state) => const AdminLabScreen(),
-      ),
-      GoRoute(
-        path: '/admin/prescription',
-        builder: (context, state) => const AdminPrescriptionScreen(),
-      ),
-      GoRoute(
-        path: '/admin/prescriptions',
-        redirect: (context, state) => '/admin/prescription',
+        builder: (context, state) => const AdminShellScreen(),
       ),
       GoRoute(
         path: '/admin/order/:id',
         builder: (context, state) {
           final orderId = state.pathParameters['id'];
           if (orderId == null || orderId.isEmpty) {
-            return const AdminMedicineSimpleScreen();
+            return const AdminShellScreen();
           }
           return AdminOrderDetailScreen(orderId: orderId);
         },
+      ),
+      GoRoute(
+        path: '/admin/prescriptions',
+        redirect: (context, state) => '/admin',
       ),
       // Lab Test routes — fix existing bug + new screens
       GoRoute(

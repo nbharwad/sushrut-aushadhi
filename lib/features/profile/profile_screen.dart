@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -165,7 +164,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           onLabTestsTap: () => context.push('/lab/orders'),
         ),
         if (isAdmin) ...[
-          _buildAdminSection(context),
+          ProfileMenuSection(
+            title: 'ADMIN',
+            icon: Icons.admin_panel_settings_rounded,
+            iconColor: AppColors.primary,
+            children: [
+              ProfileMenuTile(
+                icon: Icons.receipt_long_rounded,
+                iconColor: AppColors.primary,
+                iconBgColor: const Color(0xFFE1F5EE),
+                title: 'Admin Orders',
+                subtitle: 'Manage customer orders',
+                onTap: () => context.push('/admin'),
+              ),
+              ProfileMenuTile(
+                icon: Icons.medication_rounded,
+                iconColor: const Color(0xFF8E24AA),
+                iconBgColor: const Color(0xFFF3E5F5),
+                title: 'Prescriptions',
+                subtitle: 'Review prescriptions',
+                onTap: () => context.push('/admin/prescriptions'),
+                isLast: true,
+              ),
+            ],
+          ),
         ],
         ProfileMenuSection(
           title: 'ACCOUNT',
@@ -339,192 +361,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildAdminSection(BuildContext context) {
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-            child: Row(
-              children: [
-                Container(
-                  width: 4,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F6E56),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Admin Panel',
-                  style: GoogleFonts.sora(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF0A2D20),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE1F5EE),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'Admin',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F6E56),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: [
-                _adminCard(
-                  context: context,
-                  emoji: '🏥',
-                  title: 'Medicine Orders',
-                  subtitle: 'View and manage medicine orders',
-                  color: const Color(0xFFE1F5EE),
-                  route: '/admin/medicine',
-                  streamPath: 'orders',
-                ),
-                const SizedBox(height: 10),
-                _adminCard(
-                  context: context,
-                  emoji: '🧪',
-                  title: 'Lab Orders',
-                  subtitle: 'Manage lab test bookings',
-                  color: const Color(0xFFE3F2FD),
-                  route: '/admin/lab',
-                  streamPath: 'lab_orders',
-                ),
-                const SizedBox(height: 10),
-                _adminCard(
-                  context: context,
-                  emoji: '📋',
-                  title: 'Prescriptions',
-                  subtitle: 'Review uploaded prescriptions',
-                  color: const Color(0xFFF3E5F5),
-                  route: '/admin/prescription',
-                  streamPath: 'prescriptions',
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _adminCard({
-    required BuildContext context,
-    required String emoji,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required String route,
-    required String streamPath,
-  }) {
-    return GestureDetector(
-      onTap: () => context.push(route),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEDF2ED)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Center(child: _adminCardGlyph(title)),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.sora(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF0a2d20),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 6),
-                  StreamBuilder<int>(
-                    stream: FirebaseFirestore.instance
-                        .collection(streamPath)
-                        .where('status', isEqualTo: 'pending')
-                        .snapshots()
-                        .map((s) => s.docs.length),
-                    builder: (_, snap) {
-                      final count = snap.data ?? 0;
-                      if (count == 0) {
-                        return const Text(
-                          'No pending items',
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
-                        );
-                      }
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFEBEE),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '$count pending',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFE53935),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios,
-                size: 14, color: Colors.grey.shade400),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
@@ -533,62 +369,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _showAboutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        contentPadding: const EdgeInsets.all(20),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.medication_rounded,
-              size: 40,
-              color: AppColors.primary,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              RemoteConfigService.storeName,
-              style: GoogleFonts.sora(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-            Text(
-              AppStrings.appTagline,
-              style: GoogleFonts.sora(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 8),
-            _aboutRow('ADR', 'Address', RemoteConfigService.storeAddress),
-            _aboutRow('TEL', 'Phone', RemoteConfigService.storePhone),
-            _aboutRow('LIC', 'Drug License', RemoteConfigService.drugLicenseNo),
-            _aboutRow('GST', 'GST No.', RemoteConfigService.gstNumber),
-            _aboutRow('APP', 'App Version', 'v${AppStrings.appVersion}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Close',
-              style: GoogleFonts.sora(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-    return;
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -648,17 +428,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 28,
-            child: Text(
-              label.length >= 3 ? label.substring(0, 3).toUpperCase() : label,
-              style: GoogleFonts.sora(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
+          Text(emoji, style: const TextStyle(fontSize: 14)),
           const SizedBox(width: 8),
           Text(
             '$label: ',
@@ -680,17 +450,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ],
       ),
     );
-  }
-
-  Widget _adminCardGlyph(String title) {
-    final icon = switch (title) {
-      'Medicine Orders' => Icons.medication_rounded,
-      'Lab Orders' => Icons.science_rounded,
-      'Prescriptions' => Icons.description_outlined,
-      _ => Icons.dashboard_rounded,
-    };
-
-    return Icon(icon, size: 24, color: const Color(0xFF0F6E56));
   }
 }
 

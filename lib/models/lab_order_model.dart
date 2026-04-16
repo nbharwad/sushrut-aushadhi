@@ -23,15 +23,8 @@ enum LabOrderStatus {
   }
 
   static LabOrderStatus fromString(String status) {
-    final normalized = status.trim();
-    const aliases = {
-      'samplecollected': 'sampleCollected',
-      'sample_collected': 'sampleCollected',
-    };
-    final candidate = aliases[normalized.toLowerCase()] ?? normalized;
-
     return LabOrderStatus.values.firstWhere(
-      (e) => e.name == candidate,
+      (e) => e.name == status.toLowerCase(),
       orElse: () => LabOrderStatus.pending,
     );
   }

@@ -9,9 +9,6 @@ class AdminLabOrderCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onCallTap;
   final VoidCallback? onWhatsAppTap;
-  final ValueChanged<LabOrderStatus>? onStatusTap;
-  final VoidCallback? onUploadPdfTap;
-  final bool isUploadingPdf;
 
   const AdminLabOrderCard({
     super.key,
@@ -19,9 +16,6 @@ class AdminLabOrderCard extends StatelessWidget {
     this.onTap,
     this.onCallTap,
     this.onWhatsAppTap,
-    this.onStatusTap,
-    this.onUploadPdfTap,
-    this.isUploadingPdf = false,
   });
 
   @override
@@ -44,8 +38,6 @@ class AdminLabOrderCard extends StatelessWidget {
             _buildCardHeader(),
             _buildCustomerSection(),
             _buildTestsSection(),
-            if (order.status == LabOrderStatus.processing)
-              _buildProcessingActionRow(),
             if (order.status != LabOrderStatus.completed &&
                 order.status != LabOrderStatus.cancelled)
               _buildStatusUpdateRow(),
@@ -272,45 +264,10 @@ class AdminLabOrderCard extends StatelessWidget {
                     (status) => _StatusChipButton(
                       label: status.displayName,
                       color: _getStatusColor(status),
-                      onTap: () => onStatusTap?.call(status),
+                      onTap: () {},
                     ),
                   )
                   .toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProcessingActionRow() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: Color(0xFFEFF3EF)),
-          bottom: BorderSide(color: Color(0xFFEFF3EF)),
-        ),
-      ),
-      child: Row(
-        children: [
-          Text(
-            'Complete:',
-            style: GoogleFonts.sora(
-              color: AppColors.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: _StatusChipButton(
-                label: isUploadingPdf ? 'Uploading PDF...' : 'Upload PDF',
-                color: AppColors.primary,
-                onTap: isUploadingPdf ? () {} : () => onUploadPdfTap?.call(),
-              ),
             ),
           ),
         ],
@@ -375,7 +332,7 @@ class AdminLabOrderCard extends StatelessWidget {
       case LabOrderStatus.sampleCollected:
         return [LabOrderStatus.processing, LabOrderStatus.cancelled];
       case LabOrderStatus.processing:
-        return [];
+        return [LabOrderStatus.completed];
       case LabOrderStatus.completed:
         return [];
       case LabOrderStatus.cancelled:

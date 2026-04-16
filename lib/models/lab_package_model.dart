@@ -61,16 +61,6 @@ class LabPackageModel {
   }
 
   factory LabPackageModel.fromFirestore(Map<String, dynamic> data, String id) {
-    dynamic readField(String camelCase, [String? snakeCase]) {
-      if (data.containsKey(camelCase)) {
-        return data[camelCase];
-      }
-      if (snakeCase != null && data.containsKey(snakeCase)) {
-        return data[snakeCase];
-      }
-      return null;
-    }
-
     int toInt(dynamic value, [int defaultVal = 0]) {
       if (value == null) return defaultVal;
       if (value is int) return value;
@@ -95,27 +85,24 @@ class LabPackageModel {
 
     return LabPackageModel(
       id: id,
-      name: readField('name')?.toString() ?? '',
-      shortDescription:
-          readField('shortDescription', 'short_description')?.toString() ?? '',
-      category: readField('category')?.toString() ?? 'popular',
-      sampleType: readField('sampleType', 'sample_type')?.toString() ?? 'Blood',
-      iconName: readField('iconName', 'icon_name')?.toString() ?? 'biotech',
-      price: toDouble(readField('price')),
-      originalPrice: toDouble(readField('originalPrice', 'original_price')),
-      tatHours: toInt(readField('tatHours', 'tat_hours'), 24),
-      fastingHours: toInt(readField('fastingHours', 'fasting_hours')),
-      sortOrder: toInt(readField('sortOrder', 'sort_order')),
-      testCount: toInt(readField('testCount', 'test_count')),
-      fastingRequired:
-          (readField('fastingRequired', 'fasting_required') ?? false) as bool,
-      active: (readField('active') ?? true) as bool,
-      popular: (readField('popular') ?? false) as bool,
-      testIds: toStringList(readField('testIds', 'test_ids')),
-      testNames: toStringList(readField('testNames', 'test_names')),
-      preparationSteps:
-          toStringList(readField('preparationSteps', 'preparation_steps')),
-      parameters: toStringList(readField('parameters')),
+      name: data['name']?.toString() ?? '',
+      shortDescription: data['shortDescription']?.toString() ?? '',
+      category: data['category']?.toString() ?? 'popular',
+      sampleType: data['sampleType']?.toString() ?? 'Blood',
+      iconName: data['iconName']?.toString() ?? 'biotech',
+      price: toDouble(data['price']),
+      originalPrice: toDouble(data['originalPrice']),
+      tatHours: toInt(data['tatHours'], 24),
+      fastingHours: toInt(data['fastingHours']),
+      sortOrder: toInt(data['sortOrder']),
+      testCount: toInt(data['testCount']),
+      fastingRequired: data['fastingRequired'] ?? false,
+      active: data['active'] ?? true,
+      popular: data['popular'] ?? false,
+      testIds: toStringList(data['testIds']),
+      testNames: toStringList(data['testNames']),
+      preparationSteps: toStringList(data['preparationSteps']),
+      parameters: toStringList(data['parameters']),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );

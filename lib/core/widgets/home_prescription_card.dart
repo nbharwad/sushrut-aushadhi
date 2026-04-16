@@ -52,47 +52,49 @@ class HomePrescriptionCard extends StatelessWidget {
                     ),
                   ),
                 );
-                final content = Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Have a Prescription?',
-                      style: GoogleFonts.sora(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Upload it and we'll arrange all medicines",
-                      style: GoogleFonts.sora(
-                        fontSize: 12,
-                        height: 1.35,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 9,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        'Upload Now',
+                final content = Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Have a Prescription?',
                         style: GoogleFonts.sora(
-                          color: Colors.white,
-                          fontSize: 12,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        "Upload it and we'll arrange all medicines",
+                        style: GoogleFonts.sora(
+                          fontSize: 12,
+                          height: 1.35,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 9,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'Upload Now',
+                          style: GoogleFonts.sora(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 );
                 if (verticalLayout) {
                   return Column(
@@ -100,16 +102,15 @@ class HomePrescriptionCard extends StatelessWidget {
                     children: [
                       iconCard,
                       const SizedBox(height: 14),
-                      content,
+                      Row(children: [content]),
                     ],
                   );
                 }
                 return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     iconCard,
                     const SizedBox(width: 14),
-                    Expanded(child: content),
+                    content,
                   ],
                 );
               },

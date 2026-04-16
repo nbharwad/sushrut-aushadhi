@@ -40,12 +40,11 @@ class HomeHeaderWidget extends ConsumerWidget {
       surfaceTintColor: Colors.white,
       elevation: 0,
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(138),
+        preferredSize: const Size.fromHeight(120),
         child: Container(
           color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
               _buildLocationRow(city, displayAddress),
               const SizedBox(height: 12),
@@ -168,12 +167,11 @@ class HomeHeaderGuest extends StatelessWidget {
       surfaceTintColor: Colors.white,
       elevation: 0,
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(138),
+        preferredSize: const Size.fromHeight(120),
         child: Container(
           color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
               _buildLocationRow(),
               const SizedBox(height: 12),

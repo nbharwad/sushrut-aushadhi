@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
@@ -600,7 +599,7 @@ class LabOrderDetailScreen extends ConsumerWidget {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => _openPdf(context, order.orderId),
+                  onPressed: () => _openPdf(order.labResultUrl!),
                   icon: const Icon(Icons.visibility, size: 18),
                   label: Text('View Report',
                       style: GoogleFonts.sora(fontSize: 13)),
@@ -614,7 +613,8 @@ class LabOrderDetailScreen extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => _sharePdf(context, order.orderId),
+                  onPressed: () =>
+                      _sharePdf(order.labResultUrl!, order.orderId),
                   icon: const Icon(Icons.share, size: 18),
                   label: Text('Share', style: GoogleFonts.sora(fontSize: 13)),
                   style: OutlinedButton.styleFrom(
@@ -652,80 +652,20 @@ class LabOrderDetailScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _openPdf(BuildContext context, String orderId) async {
-    try {
-      await _handleReportAction(
-        orderId: orderId,
-        onResolvedUrl: (resolvedUrl) async {
-          final uri = Uri.parse(resolvedUrl);
-          final launched =
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-          if (!launched) {
-            throw Exception('Could not open report');
-          }
-        },
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+  Future<void> _openPdf(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
-  Future<void> _sharePdf(BuildContext context, String orderId) async {
-    try {
-      await _handleReportAction(
-        orderId: orderId,
-        onResolvedUrl: (resolvedUrl) async {
-          final shortId = orderId.length >= 8
-              ? orderId.substring(0, 8).toUpperCase()
-              : orderId.toUpperCase();
-          await Share.share(
-            'Lab Report for Order #SA-LB-$shortId\n\nSecure link (expires soon): $resolvedUrl',
-            subject: 'Lab Report - SA-LB-$shortId',
-          );
-        },
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
-    }
-  }
-
-  Future<void> _handleReportAction({
-    required String orderId,
-    required Future<void> Function(String resolvedUrl) onResolvedUrl,
-  }) async {
-    try {
-      final callable =
-          FirebaseFunctions.instance.httpsCallable('getLabReportAccessUrl');
-      final response =
-          await callable.call(<String, dynamic>{'orderId': orderId});
-      final data = Map<String, dynamic>.from(response.data as Map);
-      final signedUrl = data['url'] as String?;
-      if (signedUrl == null || signedUrl.isEmpty) {
-        throw Exception('Report link not available');
-      }
-
-      await onResolvedUrl(signedUrl);
-    } on FirebaseFunctionsException catch (e) {
-      throw Exception(_mapReportAccessError(e));
-    }
-  }
-
-  String _mapReportAccessError(FirebaseFunctionsException error) {
-    switch (error.code) {
-      case 'permission-denied':
-        return 'You do not have access to this report.';
-      case 'not-found':
-        return 'Report not available right now.';
-      case 'unauthenticated':
-        return 'Please log in again to access the report.';
-      default:
-        return error.message ?? 'Could not access the report.';
-    }
+  Future<void> _sharePdf(String url, String orderId) async {
+    final shortId = orderId.length >= 8
+        ? orderId.substring(0, 8).toUpperCase()
+        : orderId.toUpperCase();
+    await Share.share(
+      'Lab Report for Order #SA-LB-$shortId\n\nDownload: $url',
+      subject: 'Lab Report - SA-LB-$shortId',
+    );
   }
 }
