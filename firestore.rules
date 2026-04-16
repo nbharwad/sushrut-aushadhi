@@ -200,27 +200,18 @@ service cloud.firestore {
       let allowedKeys = ['orderId', 'userId', 'userPhone', 'userName', 'homeCollectionAddress',
                         'tests', 'totalAmount', 'status', 'paymentMethod', 'paymentStatus',
                         'notes', 'createdAt', 'updatedAt', 'completedAt', 'statusHistory',
-                        'resultUploaded', 'paidAt', 'labResultUrl', 'labResultPath'];
+                        'resultUploaded', 'paidAt', 'labResultUrl'];
       return request.resource.data.keys().hasOnly(allowedKeys);
     }
 
     function isValidLabOrderUpdate() {
       let allowedKeys = ['status', 'notes', 'updatedAt', 'completedAt', 'statusHistory',
-                        'resultUploaded', 'labResultUrl', 'labResultPath', 'paymentStatus', 'paidAt'];
+                        'resultUploaded', 'labResultUrl', 'paymentStatus', 'paidAt'];
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys);
     }
 
     function isValidLabTestData() {
       let allowedKeys = ['name', 'category', 'price', 'tat_hours', 'sample_type', 'active', 'createdAt'];
-      return request.resource.data.keys().hasOnly(allowedKeys);
-    }
-
-    function isValidLabPackageData() {
-      let allowedKeys = ['name', 'shortDescription', 'category', 'sampleType', 'iconName',
-                        'price', 'originalPrice', 'tatHours', 'fastingHours', 'sortOrder',
-                        'testCount', 'fastingRequired', 'active', 'popular',
-                        'testIds', 'testNames', 'preparationSteps', 'parameters',
-                        'createdAt', 'updatedAt'];
       return request.resource.data.keys().hasOnly(allowedKeys);
     }
 
@@ -249,11 +240,6 @@ service cloud.firestore {
     match /lab_tests/{testId} {
       allow read: if true;  // Allow public read access
       allow create, update, delete: if isAdmin() && isValidLabTestData();
-    }
-
-    match /lab_packages/{packageId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin() && isValidLabPackageData();
     }
 
     match /{document=**} {

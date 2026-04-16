@@ -20,9 +20,11 @@ import '../../core/widgets/home_drug_license_card.dart';
 import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/error_state_widget.dart';
 import '../../models/medicine_model.dart';
+import '../../models/order_model.dart';
 import '../../providers/articles_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/medicines_provider.dart';
+import '../../providers/orders_provider.dart';
 import '../../services/local_data_service.dart';
 import '../../services/remote_config_service.dart';
 import '../lab/widgets/lab_home_widget.dart';
@@ -181,6 +183,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               HomePrescriptionCard(
                 onTap: () => context.push('/prescription?type=medicine'),
               ),
+              _buildReorderSection(),
               HomeCategoriesSection(
                 categories:
                     _categories.map((e) => e as Map<String, dynamic>).toList(),
@@ -204,6 +207,144 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildReorderSection() {
+    final recentOrders = ref.watch(recentDeliveredOrdersProvider);
+    if (recentOrders.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+            child: Text(
+              'Order Again',
+              style: GoogleFonts.sora(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 130,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: recentOrders.length,
+              itemBuilder: (context, index) {
+                return _buildReorderCard(recentOrders[index]);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReorderCard(OrderModel order) {
+    final names = order.items.map((i) => i.medicineName).toList();
+    final displayNames = names.take(2).join(', ');
+    final more = names.length > 2 ? ' & ${names.length - 2} more' : '';
+
+    return Container(
+      width: 220,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$displayNames$more',
+            style: GoogleFonts.sora(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '₹${order.totalAmount.toStringAsFixed(0)}',
+            style: GoogleFonts.sora(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const Spacer(),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => _handleReorderCard(order),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
+              ),
+              child: Text(
+                'Reorder',
+                style: GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleReorderCard(OrderModel order) async {
+    final result = await ref.read(cartProvider.notifier).reorderFromOrder(order);
+    if (!mounted) return;
+
+    String message;
+    Color bg;
+    if (result.isSuccess) {
+      message = '${result.totalAdded} item(s) added to cart!';
+      bg = AppColors.primary;
+    } else {
+      message = 'Could not add any items to cart';
+      bg = AppColors.error;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.sora()),
+        backgroundColor: bg,
+        duration: const Duration(seconds: 3),
+        action: result.isSuccess
+            ? SnackBarAction(
+                label: 'View Cart',
+                textColor: Colors.white,
+                onPressed: () => context.go('/cart'),
+              )
+            : null,
+      ),
+    );
+
+    if (result.isSuccess && mounted) {
+      context.go('/cart');
+    }
   }
 
   Widget _buildLoadingState() {

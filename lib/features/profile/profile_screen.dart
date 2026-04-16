@@ -21,6 +21,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/lab_providers.dart';
 import '../../providers/orders_provider.dart';
+import 'widgets/loyalty_card_widget.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final String? redirectTo;
@@ -163,6 +164,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           onOrdersTap: () => context.go('/orders'),
           onLabTestsTap: () => context.push('/lab/orders'),
         ),
+        const SliverToBoxAdapter(child: SizedBox(height: 12)),
+        const SliverToBoxAdapter(child: LoyaltyCardWidget()),
         if (isAdmin) ...[
           ProfileMenuSection(
             title: 'ADMIN',
@@ -242,6 +245,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               title: 'Lab Prescriptions',
               subtitle: 'Uploaded lab prescriptions',
               onTap: () => context.push('/my-prescriptions?type=lab'),
+            ),
+            ProfileMenuTile(
+              icon: Icons.notifications_active_outlined,
+              iconColor: AppColors.secondary,
+              iconBgColor: AppColors.primaryLight,
+              title: 'My Refill Reminders',
+              subtitle: 'Manage medicine subscriptions',
+              onTap: () => context.push('/subscriptions'),
+            ),
+            ProfileMenuTile(
+              icon: Icons.folder_outlined,
+              iconColor: const Color(0xFF1E88E5),
+              iconBgColor: const Color(0xFFE3F2FD),
+              title: 'Health Records',
+              subtitle: 'Lab reports, X-rays & more',
+              onTap: () => context.push('/health-records'),
               isLast: true,
             ),
           ],

@@ -20,6 +20,7 @@ class UserModel {
   final DateTime? updatedAt;
   final DateTime? lastLoginAt;
   final bool isActive;
+  final int walletPoints;
 
   UserModel({
     required this.uid,
@@ -37,6 +38,7 @@ class UserModel {
     this.updatedAt,
     this.lastLoginAt,
     this.isActive = true,
+    this.walletPoints = 0,
   }) : deliveryAddress =
             deliveryAddress ?? DeliveryAddress(line1: '', city: '', state: '', pincode: '');
 
@@ -67,6 +69,7 @@ class UserModel {
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
       lastLoginAt: (data['lastLoginAt'] as Timestamp?)?.toDate(),
       isActive: data['isActive'] ?? true,
+      walletPoints: (data['walletPoints'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -85,6 +88,7 @@ class UserModel {
       if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
       if (lastLoginAt != null) 'lastLoginAt': Timestamp.fromDate(lastLoginAt!),
       'isActive': isActive,
+      'walletPoints': walletPoints,
     };
   }
 
@@ -104,6 +108,7 @@ class UserModel {
     DateTime? updatedAt,
     DateTime? lastLoginAt,
     bool? isActive,
+    int? walletPoints,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -121,6 +126,7 @@ class UserModel {
       updatedAt: updatedAt ?? this.updatedAt,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
       isActive: isActive ?? this.isActive,
+      walletPoints: walletPoints ?? this.walletPoints,
     );
   }
 }

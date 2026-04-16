@@ -42,6 +42,21 @@ final orderByIdProvider =
 
 final selectedStatusProvider = StateProvider<String?>((ref) => null);
 
+/// Last 3 delivered orders for the reorder section on home screen.
+/// Client-side filter on the existing ordersProvider stream to avoid a new index.
+final recentDeliveredOrdersProvider = Provider<List<OrderModel>>((ref) {
+  final orders = ref.watch(ordersProvider).valueOrNull ?? [];
+  final delivered = orders
+      .where((o) => o.status == OrderStatus.delivered)
+      .toList()
+    ..sort((a, b) {
+      final aTime = a.deliveredAt ?? a.updatedAt;
+      final bTime = b.deliveredAt ?? b.updatedAt;
+      return bTime.compareTo(aTime);
+    });
+  return delivered.take(3).toList();
+});
+
 // ── Admin Orders Pagination ────────────────────────────────────────────────
 
 enum PageErrorType {

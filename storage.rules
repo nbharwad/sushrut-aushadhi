@@ -17,32 +17,13 @@ service firebase.storage {
       return request.resource.contentType.matches('image/(jpeg|jpg|png|webp)');
     }
 
-    function isValidPdf() {
-      return request.resource.contentType == 'application/pdf';
-    }
-
     function isValidSize() {
       return request.resource.size < 10 * 1024 * 1024;
-    }
-
-    function labOrderDoc(orderId) {
-      return get(/databases/(default)/documents/labOrders/$(orderId));
-    }
-
-    function canReadLabResult(orderId) {
-      return isAdmin() ||
-        (isSignedIn() &&
-          labOrderDoc(orderId).data.userId == request.auth.uid);
     }
 
     match /prescriptions/{userId}/{fileName} {
       allow read: if isOwner(userId) || isAdmin();
       allow write: if isOwner(userId) && isValidSize() && isValidImage();
-    }
-
-    match /lab_results/{orderId}/{fileName} {
-      allow read: if canReadLabResult(orderId);
-      allow write: if isAdmin() && isValidSize() && isValidPdf();
     }
 
     match /medicines/{fileName} {

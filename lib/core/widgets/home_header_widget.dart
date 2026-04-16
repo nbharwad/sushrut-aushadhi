@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/notifications_provider.dart';
 
 class HomeHeaderWidget extends ConsumerWidget {
   final VoidCallback onSearchTap;
@@ -29,6 +31,7 @@ class HomeHeaderWidget extends ConsumerWidget {
     final user = userAsync.valueOrNull;
     final displayAddress = user?.address ?? currentAddress ?? '';
     final city = _extractCity(displayAddress);
+    final unreadCount = ref.watch(unreadCountProvider);
 
     return SliverAppBar(
       expandedHeight: 0,
@@ -54,7 +57,7 @@ class HomeHeaderWidget extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
           child: Column(
             children: [
-              _buildLocationRow(city, displayAddress),
+              _buildLocationRow(context, city, displayAddress, unreadCount),
               const SizedBox(height: 12),
               _buildSearchBar(context),
             ],
@@ -64,7 +67,7 @@ class HomeHeaderWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildLocationRow(String city, String displayAddress) {
+  Widget _buildLocationRow(BuildContext context, String city, String displayAddress, int unreadCount) {
     return GestureDetector(
       onTap: onLocationTap,
       child: Row(
@@ -120,6 +123,54 @@ class HomeHeaderWidget extends ConsumerWidget {
               ],
             ),
           ),
+          // Bell icon with unread badge
+          GestureDetector(
+            onTap: () => context.push('/notifications'),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundAlt,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.notifications_outlined,
+                      color: AppColors.textPrimary,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                if (unreadCount > 0)
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: Container(
+                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          unreadCount > 9 ? '9+' : '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
           // Sushrut badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),

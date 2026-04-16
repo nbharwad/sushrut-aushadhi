@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/helpers.dart';
+import '../../core/widgets/order_status_stepper.dart';
 import '../../models/order_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/orders_provider.dart';
@@ -46,12 +47,12 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   left: 16,
                   right: 16,
                   top: 16,
-                  bottom: order.status == OrderStatus.delivered ? 80 : 16,
+                  bottom: order.status == OrderStatus.delivered ? 96 : 16,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildStatusTimeline(order.status),
+                    OrderStatusStepper(order: order),
                     const SizedBox(height: 24),
                     _buildOrderInfo(context, order),
                     const SizedBox(height: 24),
@@ -85,29 +86,56 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                       ],
                     ),
                     child: SafeArea(
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isReordering ? null : () => _handleReorder(order),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0F6E56),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                      child: Row(
+                        children: [
+                          // Show "Return" button only within 7 days of delivery
+                          if (_isWithinReturnWindow(order)) ...[
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => context.push(
+                                    '/return-request/${order.orderId}'),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(
+                                      color: Color(0xFF0F6E56)),
+                                  foregroundColor: const Color(0xFF0F6E56),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text('Return'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _isReordering
+                                  ? null
+                                  : () => _handleReorder(order),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0F6E56),
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: _isReordering
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text('Reorder'),
                             ),
                           ),
-                          child: _isReordering
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Reorder'),
-                        ),
+                        ],
                       ),
                     ),
                   ),
@@ -119,6 +147,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         error: (error, stack) => Center(child: Text('Error: $error')),
       ),
     );
+  }
+
+  bool _isWithinReturnWindow(OrderModel order) {
+    final deliveredAt = order.deliveredAt ?? order.updatedAt;
+    return DateTime.now().difference(deliveredAt).inDays <= 7;
   }
 
   Future<void> _handleReorder(OrderModel order) async {
@@ -211,76 +244,6 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         setState(() => _isReordering = false);
       }
     }
-  }
-
-  Widget _buildStatusTimeline(OrderStatus status) {
-    final statuses = OrderStatus.values.where((s) => s != OrderStatus.cancelled).toList();
-    final currentIndex = statuses.indexOf(status);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Order Status',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 16),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: statuses.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final s = entry.value;
-                  final isCompleted = index <= currentIndex;
-                  final isCurrent = index == currentIndex;
-
-                  return SizedBox(
-                    width: 88,
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isCompleted
-                                ? Helpers.getStatusColor(s)
-                                : Colors.grey.shade300,
-                          ),
-                          child: isCompleted
-                              ? const Icon(
-                                  Icons.check,
-                                  size: 14,
-                                  color: Colors.white,
-                                )
-                              : null,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          s.displayName,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: isCurrent ? AppColors.primary : AppColors.textSecondary,
-                            fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildOrderInfo(BuildContext context, OrderModel order) {

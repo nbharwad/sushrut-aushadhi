@@ -330,4 +330,219 @@ class FirestoreService {
           ).toMap(),
         );
   }
+
+  // ── Notification Helper ───────────────────────────────────────────────────
+
+  Future<void> saveNotificationToFirestore({
+    required String userId,
+    required String title,
+    required String body,
+    required String type,
+    String? orderId,
+  }) async {
+    await _db.collection('notifications').add({
+      'userId': userId,
+      'title': title,
+      'body': body,
+      'type': type,
+      if (orderId != null) 'orderId': orderId,
+      'isRead': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // ── Generic Alternatives (F4) ──────────────────────────────────────────────
+
+  Future<List<MedicineModel>> getGenericAlternatives({
+    required String genericName,
+    required String excludeId,
+    int limit = 6,
+  }) async {
+    try {
+      final snapshot = await _db
+          .collection('medicines')
+          .where('genericName', isEqualTo: genericName)
+          .where('isActive', isEqualTo: true)
+          .limit(limit + 1)
+          .get();
+      return snapshot.docs
+          .map((doc) => MedicineModel.fromFirestore(doc.data(), doc.id))
+          .where((m) => m.id != excludeId)
+          .take(limit)
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ── Reviews & Ratings (F5) ─────────────────────────────────────────────────
+
+  Stream<List<Map<String, dynamic>>> getMedicineReviews(String medicineId) {
+    return _db
+        .collection('medicines')
+        .doc(medicineId)
+        .collection('reviews')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+  }
+
+  Future<void> submitReview({
+    required String medicineId,
+    required String userId,
+    required String userName,
+    required int rating,
+    required String comment,
+    required String orderId,
+    required bool isVerified,
+  }) async {
+    final reviewId = _uuid.v4();
+    await _db
+        .collection('medicines')
+        .doc(medicineId)
+        .collection('reviews')
+        .doc(reviewId)
+        .set({
+      'userId': userId,
+      'userName': userName,
+      'rating': rating,
+      'comment': comment,
+      'orderId': orderId,
+      'isVerified': isVerified,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    // backward-compat: stamp last rating on order doc
+    await _db
+        .collection('orders')
+        .doc(orderId)
+        .set({'rating': rating}, SetOptions(merge: true));
+  }
+
+  Future<bool> hasReviewedMedicine({
+    required String userId,
+    required String medicineId,
+  }) async {
+    final snap = await _db
+        .collection('medicines')
+        .doc(medicineId)
+        .collection('reviews')
+        .where('userId', isEqualTo: userId)
+        .limit(1)
+        .get();
+    return snap.docs.isNotEmpty;
+  }
+
+  // ── Coupon / Promo (F6) ────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>?> getCoupon(String code) async {
+    final doc = await _db.collection('coupons').doc(code.toUpperCase()).get();
+    if (!doc.exists) return null;
+    return {'id': doc.id, ...doc.data()!};
+  }
+
+  Future<void> incrementCouponUsage(String code) async {
+    await _db
+        .collection('coupons')
+        .doc(code.toUpperCase())
+        .update({'usedCount': FieldValue.increment(1)});
+  }
+
+  // ── Loyalty Points (F7) ───────────────────────────────────────────────────
+
+  Future<void> awardPoints({
+    required String userId,
+    required String orderId,
+    required double orderTotal,
+    required int points,
+  }) async {
+    await _db.runTransaction((tx) async {
+      final userRef = _db.collection('users').doc(userId);
+      tx.update(userRef, {'walletPoints': FieldValue.increment(points)});
+      final histRef = userRef.collection('pointsHistory').doc(_uuid.v4());
+      tx.set(histRef, {
+        'type': 'earned',
+        'points': points,
+        'orderId': orderId,
+        'description': 'Earned on order ₹${orderTotal.toStringAsFixed(0)}',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<void> redeemPoints({
+    required String userId,
+    required int pointsToRedeem,
+    required String orderId,
+  }) async {
+    await _db.runTransaction((tx) async {
+      final userRef = _db.collection('users').doc(userId);
+      final snap = await tx.get(userRef);
+      final current = (snap.data()?['walletPoints'] as int?) ?? 0;
+      if (current < pointsToRedeem) throw Exception('Insufficient points');
+      tx.update(userRef, {'walletPoints': FieldValue.increment(-pointsToRedeem)});
+      final histRef = userRef.collection('pointsHistory').doc(_uuid.v4());
+      tx.set(histRef, {
+        'type': 'redeemed',
+        'points': pointsToRedeem,
+        'orderId': orderId,
+        'description': 'Redeemed for order',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Stream<List<Map<String, dynamic>>> getPointsHistory(String userId) {
+    return _db
+        .collection('users')
+        .doc(userId)
+        .collection('pointsHistory')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+  }
+
+  // ── Return Requests (F10) ─────────────────────────────────────────────────
+
+  Future<String> submitReturnRequest(Map<String, dynamic> data) async {
+    final id = _uuid.v4();
+    await _db.collection('returnRequests').doc(id).set({
+      ...data,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    return id;
+  }
+
+  Stream<List<Map<String, dynamic>>> getReturnRequests({String? status}) {
+    Query<Map<String, dynamic>> query = _db
+        .collection('returnRequests')
+        .orderBy('createdAt', descending: true);
+    if (status != null) {
+      query = query.where('status', isEqualTo: status);
+    }
+    return query.snapshots().map(
+        (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+  }
+
+  Stream<List<Map<String, dynamic>>> getUserReturnRequests(String userId) {
+    return _db
+        .collection('returnRequests')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+  }
+
+  Future<void> updateReturnStatus({
+    required String requestId,
+    required String status,
+    String? adminNote,
+  }) async {
+    await _db.collection('returnRequests').doc(requestId).update({
+      'status': status,
+      if (adminNote != null) 'adminNote': adminNote,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 }

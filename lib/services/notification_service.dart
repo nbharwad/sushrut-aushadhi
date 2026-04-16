@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/order_model.dart';
+import '../models/subscription_model.dart';
 
 class NotificationService {
   final FirebaseMessaging _messaging;
@@ -210,5 +212,40 @@ class NotificationService {
   void dispose() {
     _tokenRefreshSubscription?.cancel();
     _onOrderNotificationTap = null;
+  }
+
+  // ── Refill Reminders (F8) ─────────────────────────────────────────────────
+
+  static final _localNotifications = FlutterLocalNotificationsPlugin();
+  static bool _localInitialized = false;
+
+  Future<void> _ensureLocalInitialized() async {
+    if (_localInitialized) return;
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings();
+    const settings = InitializationSettings(
+        android: androidSettings, iOS: iosSettings);
+    await _localNotifications.initialize(settings);
+    _localInitialized = true;
+  }
+
+  Future<void> scheduleRefillReminder(SubscriptionModel sub) async {
+    await _ensureLocalInitialized();
+    const androidDetails = AndroidNotificationDetails(
+      'refill_reminders',
+      'Refill Reminders',
+      channelDescription: 'Reminders to refill your medicines',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+    const iosDetails = DarwinNotificationDetails();
+    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    await _localNotifications.show(
+      sub.id.hashCode,
+      'Time to refill ${sub.medicineName}!',
+      'Your ${sub.frequencyDays}-day supply is running out. Tap to reorder.',
+      details,
+    );
   }
 }

@@ -9,11 +9,14 @@ import '../../core/utils/responsive.dart';
 import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/login_prompt_widget.dart';
 import '../../core/di/service_providers.dart';
+import '../../models/coupon_model.dart';
 import '../../models/order_model.dart';
 import '../../models/delivery_address.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/coupon_provider.dart';
 import '../../services/connectivity_service.dart';
+import '../../services/coupon_service.dart';
 import '../../services/delivery_details_service.dart';
 import 'widgets/delivery_details_sheet.dart';
 
@@ -28,7 +31,8 @@ class CartScreen extends ConsumerStatefulWidget {
 
 class _CartScreenState extends ConsumerState<CartScreen> {
   final _promoController = TextEditingController();
-  String? _appliedPromo;
+  String? _promoError;
+  bool _isApplyingPromo = false;
   bool _isProcessing = false;
 
   @override
@@ -42,8 +46,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final cartItems = ref.watch(cartProvider);
     final cartTotal = ref.watch(cartTotalProvider);
     final requiresPrescription = ref.watch(cartRequiresPrescriptionProvider);
+    final appliedCoupon = ref.watch(appliedCouponProvider);
     final mrpTotal = _calculateMrpTotal(cartItems);
-    final discount = mrpTotal - cartTotal;
+    final medicineDiscount = mrpTotal - cartTotal;
+    final couponDiscount = appliedCoupon != null
+        ? appliedCoupon.calculateDiscount(cartTotal)
+        : 0.0;
+    final discount = medicineDiscount;
+    final finalTotal = cartTotal - couponDiscount;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -92,14 +102,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           children: [
                             if (requiresPrescription) _buildPrescriptionAlert(),
                             _buildCartItemsList(cartItems),
-                            _buildPromoCodeSection(),
-                            _buildBillSummary(mrpTotal, discount),
+                            _buildPromoCodeSection(cartTotal),
+                            _buildBillSummary(mrpTotal, discount, couponDiscount),
                             _trustFooter(),
                           ],
                         ),
                       ),
                     ),
-                    _buildStickyBottomBar(cartTotal),
+                    _buildStickyBottomBar(finalTotal),
                   ],
                 ),
     );
@@ -422,7 +432,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  Widget _buildPromoCodeSection() {
+  Widget _buildPromoCodeSection(double cartTotal) {
+    final appliedCoupon = ref.watch(appliedCouponProvider);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -440,73 +452,130 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 360;
-              final applyWidget = _appliedPromo != null
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.check_circle,
-                              color: AppColors.primary, size: 18),
-                          const SizedBox(width: 4),
-                          Text(
-                            _appliedPromo!,
-                            style: GoogleFonts.sora(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
+          if (appliedCoupon != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: AppColors.primary, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          appliedCoupon.code,
+                          style: GoogleFonts.sora(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
                           ),
-                        ],
-                      ),
-                    )
-                  : TextButton(
-                      onPressed: () {
-                        if (_promoController.text.isNotEmpty) {
-                          setState(() => _appliedPromo = _promoController.text);
-                        }
-                      },
-                      child: Text(
-                        'APPLY',
-                        style: GoogleFonts.sora(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
                         ),
-                      ),
-                    );
-
-              if (compact) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                        Text(
+                          '-₹${appliedCoupon.calculateDiscount(cartTotal).toStringAsFixed(0)} saved',
+                          style: GoogleFonts.sora(
+                            color: AppColors.primary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      ref.read(appliedCouponProvider.notifier).state = null;
+                      _promoController.clear();
+                      setState(() => _promoError = null);
+                    },
+                    child: const Icon(Icons.close, color: AppColors.textSecondary, size: 18),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 360;
+                final applyBtn = TextButton(
+                  onPressed: _isApplyingPromo
+                      ? null
+                      : () => _applyPromo(cartTotal),
+                  child: _isApplyingPromo
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(
+                          'APPLY',
+                          style: GoogleFonts.sora(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                );
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildPromoField(),
+                      const SizedBox(height: 12),
+                      Align(alignment: Alignment.centerLeft, child: applyBtn),
+                    ],
+                  );
+                }
+                return Row(
                   children: [
-                    _buildPromoField(),
-                    const SizedBox(height: 12),
-                    Align(alignment: Alignment.centerLeft, child: applyWidget),
+                    Expanded(child: _buildPromoField()),
+                    const SizedBox(width: 12),
+                    applyBtn,
                   ],
                 );
-              }
-
-              return Row(
-                children: [
-                  Expanded(child: _buildPromoField()),
-                  const SizedBox(width: 12),
-                  applyWidget,
-                ],
-              );
-            },
-          ),
+              },
+            ),
+            if (_promoError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _promoError!,
+                  style: GoogleFonts.sora(
+                    color: AppColors.error,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _applyPromo(double cartTotal) async {
+    final code = _promoController.text.trim();
+    if (code.isEmpty) return;
+    setState(() {
+      _isApplyingPromo = true;
+      _promoError = null;
+    });
+    final user = FirebaseAuth.instance.currentUser;
+    final result = await ref.read(couponServiceProvider).validateAndApply(
+          code: code,
+          cartTotal: cartTotal,
+          userId: user?.uid ?? '',
+        );
+    if (!mounted) return;
+    if (result is CouponSuccess) {
+      ref.read(appliedCouponProvider.notifier).state = result.coupon;
+      setState(() => _promoError = null);
+    } else if (result is CouponError) {
+      setState(() => _promoError = result.message);
+    }
+    setState(() => _isApplyingPromo = false);
   }
 
   Widget _buildPromoField() {
@@ -528,7 +597,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  Widget _buildBillSummary(double mrpTotal, double discount) {
+  Widget _buildBillSummary(double mrpTotal, double discount, double couponDiscount) {
+    final totalSaving = discount + couponDiscount;
+    final finalTotal = mrpTotal - discount - couponDiscount;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -549,17 +621,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           _buildSummaryRow('MRP Total', '\u20B9${mrpTotal.toStringAsFixed(0)}'),
           if (discount > 0)
             _buildSummaryRow(
-                'Discount', '-\u20B9${discount.toStringAsFixed(0)}',
+                'Medicine Discount', '-\u20B9${discount.toStringAsFixed(0)}',
+                isGreen: true),
+          if (couponDiscount > 0)
+            _buildSummaryRow(
+                'Promo Discount', '-\u20B9${couponDiscount.toStringAsFixed(0)}',
                 isGreen: true),
           _buildSummaryRow('Delivery', 'FREE', isGreen: true),
           const Divider(height: 24),
           _buildSummaryRow(
             'Total Payable',
-            '\u20B9${(mrpTotal - discount).toStringAsFixed(0)}',
+            '\u20B9${finalTotal.toStringAsFixed(0)}',
             isBold: true,
             isGreen: true,
           ),
-          if (discount > 0) ...[
+          if (totalSaving > 0) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -575,7 +651,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      'You save \u20B9${discount.toStringAsFixed(0)} on this order!',
+                      'You save \u20B9${totalSaving.toStringAsFixed(0)} on this order!',
                       style: GoogleFonts.sora(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,
@@ -932,6 +1008,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         pincode: userPincode,
       );
 
+      final appliedCoupon = ref.read(appliedCouponProvider);
+      final couponDiscount =
+          appliedCoupon != null ? appliedCoupon.calculateDiscount(cartTotal) : 0.0;
+      final finalTotal = cartTotal - couponDiscount;
+
       final order = OrderModel(
         orderId: '',
         userId: authUser.uid,
@@ -939,13 +1020,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         userName: user.name.isNotEmpty ? user.name : 'Customer',
         deliveryAddress: deliveryAddress,
         items: orderItemsList,
-        totalAmount: cartTotal,
+        totalAmount: finalTotal,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
-      final newOrderId =
-          await ref.read(firestoreServiceProvider).placeOrder(order);
+      final firestoreService = ref.read(firestoreServiceProvider);
+      final newOrderId = await firestoreService.placeOrder(order);
+
+      // Increment coupon usage if one was applied
+      if (appliedCoupon != null) {
+        await firestoreService.incrementCouponUsage(appliedCoupon.code);
+        ref.read(appliedCouponProvider.notifier).state = null;
+      }
 
       if (!mounted) {
         return;

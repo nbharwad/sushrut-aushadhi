@@ -32,3 +32,17 @@ final allMedicinesProvider = StreamProvider<List<MedicineModel>>((ref) {
   final firestoreService = ref.watch(firestoreServiceProvider);
   return firestoreService.getMedicinesStream(category: 'all');
 });
+
+typedef GenericAlternativesParams = ({String genericName, String excludeId});
+
+final genericAlternativesProvider =
+    FutureProvider.family<List<MedicineModel>, GenericAlternativesParams>(
+  (ref, params) async {
+    if (params.genericName.isEmpty) return [];
+    final firestoreService = ref.read(firestoreServiceProvider);
+    return firestoreService.getGenericAlternatives(
+      genericName: params.genericName,
+      excludeId: params.excludeId,
+    );
+  },
+);

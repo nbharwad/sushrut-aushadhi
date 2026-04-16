@@ -28,6 +28,12 @@ import '../../features/prescription/my_prescriptions_screen.dart';
 import '../../features/prescription/prescription_upload_screen.dart';
 import '../../models/prescription_model.dart';
 import '../../features/profile/profile_screen.dart';
+import '../../features/notifications/notifications_screen.dart';
+import '../../features/profile/loyalty_screen.dart';
+import '../../features/subscriptions/subscriptions_screen.dart';
+import '../../features/health_records/health_records_screen.dart';
+import '../../features/orders/return_request_screen.dart';
+import '../../features/admin/admin_returns_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../providers/auth_provider.dart';
 
@@ -172,6 +178,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/loyalty',
+        builder: (context, state) => const LoyaltyScreen(),
+      ),
+      GoRoute(
+        path: '/subscriptions',
+        builder: (context, state) => const SubscriptionsScreen(),
+      ),
+      GoRoute(
+        path: '/health-records',
+        builder: (context, state) => const HealthRecordsScreen(),
       ),
       GoRoute(
         path: '/medicine',
@@ -322,6 +344,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin/lab-tests',
         builder: (context, state) => const AdminLabTestsScreen(),
+      ),
+      GoRoute(
+        path: '/return-request/:orderId',
+        builder: (context, state) {
+          final orderId = state.pathParameters['orderId'];
+          if (orderId == null || orderId.isEmpty) return const OrdersScreen();
+          return ReturnRequestScreen(orderId: orderId);
+        },
+      ),
+      GoRoute(
+        path: '/admin/returns',
+        builder: (context, state) => const AdminReturnsScreen(),
       ),
     ],
   );

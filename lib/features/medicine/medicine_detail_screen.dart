@@ -5,7 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/helpers.dart';
+import '../../core/widgets/generic_alternatives_section.dart';
+import '../../core/widgets/medicine_reviews_section.dart';
+import '../../features/subscriptions/add_subscription_sheet.dart';
 import '../../models/medicine_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/medicines_provider.dart';
 
@@ -111,6 +115,15 @@ class _MedicineDetailScreenState extends ConsumerState<MedicineDetailScreen> {
                   _buildProductInfoSection(medicine),
                   _buildDescriptionSection(medicine),
                   _buildTrustSection(),
+                  _buildRefillReminderButton(medicine),
+                  GenericAlternativesSection(
+                    genericName: medicine['genericName']?.toString() ?? '',
+                    excludeId: medicine['id']?.toString() ?? '',
+                  ),
+                  MedicineReviewsSection(
+                    medicineId: medicine['id']?.toString() ?? '',
+                    orderId: null,
+                  ),
                   const SizedBox(height: 120),
                 ],
               ),
@@ -605,6 +618,42 @@ class _MedicineDetailScreenState extends ConsumerState<MedicineDetailScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRefillReminderButton(Map<String, dynamic> medicine) {
+    final user = ref.watch(currentUserProvider).valueOrNull;
+    if (user == null) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: OutlinedButton.icon(
+        onPressed: () => showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => AddSubscriptionSheet(
+            medicineId: medicine['id']?.toString() ?? '',
+            medicineName: medicine['name']?.toString() ?? '',
+          ),
+        ),
+        icon: const Icon(Icons.notifications_active_outlined,
+            color: AppColors.primary, size: 18),
+        label: Text(
+          'Set Refill Reminder',
+          style: GoogleFonts.sora(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: AppColors.primary),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          minimumSize: const Size(double.infinity, 0),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       ),
     );
   }
